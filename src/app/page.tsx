@@ -18,7 +18,8 @@ export default function FoundationPage() {
         <Image
           src="/assets/branding/a_wide_cinematic_high_resolution_fitness_theme.png"
           alt=""
-          fill
+          width={1672}
+          height={941}
           priority
           sizes="100vw"
         />
