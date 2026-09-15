@@ -1,3 +1,4 @@
-export default function FoundationPage() {
-  return <main style={{ minHeight: "100vh", display: "grid", placeItems: "center", padding: 24 }}><section style={{ textAlign: "center" }}><p style={{ color: "var(--gold)", letterSpacing: ".18em", fontSize: 12 }}>ERLANY FIT</p><h1 style={{ color: "var(--primary-dark)", fontWeight: 400 }}>Seu corpo, seu cuidado, sua evolução</h1><p style={{ color: "var(--text-muted)" }}>Fundação técnica preparada para a experiência ERLANY FIT.</p></section></main>;
-}
+import Link from "next/link";
+import { BrandLogo } from "@/components/branding/brand-logo";
+
+export default function FoundationPage() { return <main className="splash-page"><div className="splash-art" aria-label="Mulher de costas com roupa fitness roxa, conforme a referência visual" /><div className="splash-content"><BrandLogo variant="gold" /><p>Seu corpo,<br />seu cuidado,<br />sua evolução</p><Link className="button button-gold" href="/login">Vamos começar</Link></div></main>; }
