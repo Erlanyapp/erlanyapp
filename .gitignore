@@ -9,3 +9,5 @@ out/
 *.tsbuildinfo
 .DS_Store
 supabase/.temp/
+.vercel
+.env*
