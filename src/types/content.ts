@@ -89,3 +89,17 @@ export interface NutritionMeal extends ScopedContent {
   guidance: string | null;
   recipeId: string | null;
 }
+
+export interface NutritionPlan extends ScopedContent {
+  id: string;
+  name: string;
+  description: string | null;
+  createdAt: string;
+}
+
+export interface ProgressPhoto {
+  id: string;
+  assetId: string | null;
+  category: string | null;
+  recordedAt: string;
+}

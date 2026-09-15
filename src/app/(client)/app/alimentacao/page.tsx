@@ -1,5 +1,6 @@
-import { PageHeader } from "@/components/ui";
+import { EmptyState, PageHeader } from "@/components/ui";
 import { FoodCard, Hero, TabNavigation } from "@/components/client/client-components";
-
-const meals = [{ title: "Café da manhã", description: "Comece o dia com energia", icon: "☼" }, { title: "Almoço equilibrado", description: "Nutrição para seu ritmo", icon: "◒" }, { title: "Lanches", description: "Opções práticas e gostosas", icon: "♡" }, { title: "Jantar leve", description: "Cuide de você até o fim do dia", icon: "☾" }];
-export default function FoodPage() { return <div><PageHeader title="Alimentação" /><Hero eyebrow="CUIDAR TAMBÉM É NUTRIR" title="Escolhas que fazem bem" description="Orientações simples para uma rotina mais leve." icon="◒" className="food-hero" /><TabNavigation tabs={["Meu dia", "Receitas", "Orientações"]} selected="Meu dia" /><div className="food-list">{meals.map((meal) => <FoodCard {...meal} key={meal.title} />)}</div></div>; }
+import { ContentError } from "@/components/client/content-states";
+import { getContentService } from "@/services/server-content";
+export default async function FoodPage() { const service = await getContentService(); if (!service) return <div><PageHeader title="Alimentação" /><ContentError label="sua alimentação" /></div>; try { const plans = await service.listNutritionPlans(); return <div><PageHeader title="Alimentação" /><Hero eyebrow="CUIDAR TAMBÉM É NUTRIR" title="Escolhas que fazem bem" description="Orientações simples para uma rotina mais leve." icon="◒" className="food-hero" /><TabNavigation tabs={["Planos", "Receitas", "Orientações"]} selected="Planos" /><div className="food-list">{plans.length ? plans.map((plan) => <FoodCard title={plan.name} description={plan.description ?? "Plano alimentar disponível para você."} icon="◒" key={plan.id} />) : <EmptyState title="Nenhum plano disponível" description="Seu conteúdo de alimentação aparecerá aqui quando for liberado." />}</div></div>; } catch { return <div><PageHeader title="Alimentação" /><ContentError label="sua alimentação" /></div>; }
+}

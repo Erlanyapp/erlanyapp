@@ -1,4 +1,13 @@
 import { PageHeader, EmptyState } from "@/components/ui";
-import { CategoryCard, TabNavigation } from "@/components/client/client-components";
-import { categories } from "@/data/client-mocks";
-export default function WorkoutsPage() { return <div><PageHeader title="Treinos" /><TabNavigation tabs={["Categorias", "Meus treinos"]} selected="Categorias" /><div className="category-list">{categories.map((category) => <CategoryCard category={category} key={category.name} />)}</div><EmptyState title="Personalize seu ritmo" description="Em breve, seus treinos aparecerão aqui." /></div>; }
+import { WorkoutCard, TabNavigation } from "@/components/client/client-components";
+import { ContentError } from "@/components/client/content-states";
+import { getContentService } from "@/services/server-content";
+
+export default async function WorkoutsPage() {
+  const service = await getContentService();
+  if (!service) return <div><PageHeader title="Treinos" /><ContentError label="seus treinos" /></div>;
+  try {
+    const workouts = await service.listWorkouts();
+    return <div><PageHeader title="Treinos" /><TabNavigation tabs={["Todos", "Meus treinos"]} selected="Todos" /><div className="workout-list">{workouts.length ? workouts.map((workout) => <WorkoutCard workout={workout} key={workout.id} />) : <EmptyState title="Nenhum treino disponível" description="Seus treinos aparecerão aqui quando forem liberados." />}</div></div>;
+  } catch { return <div><PageHeader title="Treinos" /><ContentError label="seus treinos" /></div>; }
+}
