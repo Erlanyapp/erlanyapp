@@ -15,6 +15,8 @@ export interface Exercise extends ScopedContent {
   description: string | null;
   instructions: string | null;
   muscles: string[];
+  equipment: string | null;
+  category: string | null;
   difficulty: string | null;
   thumbnailUrl: string | null;
   videoId: string | null;
@@ -32,6 +34,7 @@ export interface Workout extends ScopedContent {
   durationMinutes: number | null;
   level: string | null;
   coverAssetId: string | null;
+  coverUrl?: string | null;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
@@ -47,6 +50,8 @@ export interface WorkoutExercise {
   repetitions: string | null;
   restSeconds: number | null;
   notes: string | null;
+  exerciseName?: string;
+  exerciseThumbnailUrl?: string | null;
 }
 
 export interface WorkoutVideo extends ScopedContent {
@@ -79,6 +84,7 @@ export interface Tip extends ScopedContent {
   categoryId: string | null;
   imageAssetId: string | null;
   isActive: boolean;
+  imageUrl?: string | null;
 }
 
 export interface NutritionMeal extends ScopedContent {
@@ -97,9 +103,22 @@ export interface NutritionPlan extends ScopedContent {
   createdAt: string;
 }
 
+export interface Recipe {
+  id: string;
+  name: string;
+  description: string | null;
+  ingredients: Array<{ name: string; quantity?: string }>;
+  instructions: string | null;
+}
+
+export interface ProgressWeight { id: string; value: number; recordedAt: string; }
+export interface ProgressMeasurement { id: string; measurements: Record<string, unknown>; recordedAt: string; }
+export interface PerformanceRecord { id: string; metric: string; value: number | null; unit: string | null; recordedAt: string; }
+
 export interface ProgressPhoto {
   id: string;
   assetId: string | null;
   category: string | null;
   recordedAt: string;
+  imageUrl?: string | null;
 }

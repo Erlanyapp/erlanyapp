@@ -9,6 +9,11 @@ export function createContentService(repository: ContentRepository) {
     listVideos: () => repository.listVideos(),
     getExercise: (id: string) => repository.getExercise(id),
     listNutritionPlans: () => repository.listNutritionPlans(),
+    listNutritionMeals: (id: string) => repository.listNutritionMeals(id),
+    listRecipes: () => repository.listRecipes(),
+    listProgressWeights: () => repository.listProgressWeights(),
+    listProgressMeasurements: () => repository.listProgressMeasurements(),
+    listPerformanceRecords: () => repository.listPerformanceRecords(),
     listProgressPhotos: () => repository.listProgressPhotos(),
     listTips: () => repository.listTips(),
   };
