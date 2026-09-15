@@ -83,6 +83,6 @@ create policy "tip categories read" on public.tip_categories for select to authe
 create policy "active massage services read" on public.massage_services for select to authenticated using (is_active = true);
 
 insert into storage.buckets (id, name, public) values ('images', 'images', false) on conflict (id) do nothing;
-create policy "authenticated image read" on storage.objects for select to authenticated using (bucket_id = 'images' and ((storage.foldername(name))[1] = 'global' or ((storage.foldername(name))[1] in ('clients', 'progress') and ((storage.foldername(name))[2])::uuid in (select id from public.clients where user_id = (select auth.uid()))) or (select auth.jwt() -> 'app_metadata' ->> 'role') = 'ADMIN');
+create policy "authenticated image read" on storage.objects for select to authenticated using (bucket_id = 'images' and ((storage.foldername(name))[1] = 'global' or ((storage.foldername(name))[1] in ('clients', 'progress') and ((storage.foldername(name))[2])::uuid in (select id from public.clients where user_id = (select auth.uid()))) or (select auth.jwt() -> 'app_metadata' ->> 'role') = 'ADMIN'));
 create policy "admin image write" on storage.objects for all to authenticated using (bucket_id = 'images' and (select auth.jwt() -> 'app_metadata' ->> 'role') = 'ADMIN') with check (bucket_id = 'images' and (select auth.jwt() -> 'app_metadata' ->> 'role') = 'ADMIN');
 insert into public.plans (name, description, price_cents) values ('Básico', 'Plano inicial', 2990), ('Personalizado', 'Plano acompanhado', 5990), ('Premium', 'Plano completo', 8990);
