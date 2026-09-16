@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { AppIcon } from "@/components/icons";
 import { Card, EmptyState, PageHeader } from "@/components/ui";
 import { VideoPlayer } from "@/components/client/client-components";
 import { ContentError } from "@/components/client/content-states";
@@ -19,6 +20,19 @@ export default async function ExerciseDetailPage({ params, searchParams }: { par
     const item = items.find(item => item.exerciseId === exercise.id);
     const videoId = item?.videoId || exercise.videoId;
     const video = videoId ? (await service.listVideos()).find(video => video.id === videoId) : null;
-    return <div><PageHeader title={exercise.name} back backHref={backHref} /><div className="detail-meta"><span>{exercise.category ?? "Exercício"}</span>{exercise.difficulty && <span>{exercise.difficulty}</span>}{exercise.equipment && <span>{exercise.equipment}</span>}</div>{item && <dl className="card account-panel account-data">{item.sets != null && <div><dt>Séries</dt><dd>{item.sets}</dd></div>}{item.repetitions && <div><dt>Repetições</dt><dd>{item.repetitions}</dd></div>}{item.restSeconds != null && <div><dt>Descanso</dt><dd>{item.restSeconds}s</dd></div>}{item.notes && <div><dt>Orientação do treino</dt><dd>{item.notes}</dd></div>}</dl>}<VideoPlayer video={video} /><p className="muted">{exercise.description ?? "Prepare-se para evoluir com segurança."}</p><Card><p className="eyebrow">INSTRUÇÕES</p><p>{exercise.instructions ?? "Siga a orientação do seu profissional."}</p>{exercise.muscles.length > 0 && <small>Músculos: {exercise.muscles.join(", ")}</small>}</Card><Link className="button button-primary full-width exercise-cta" href={backHref}>Voltar ao treino</Link></div>;
+    return <div className="exercise-reference-page">
+      <PageHeader title={exercise.name} back backHref={backHref} />
+      <VideoPlayer video={video} />
+      <h2 className="exercise-name">{exercise.name}</h2>
+      <p className="exercise-description">{exercise.description ?? "Prepare-se para evoluir com segurança."}</p>
+      {item && <dl className="exercise-prescription">
+        {item.sets != null && <div><dt>Séries</dt><dd>{item.sets}</dd></div>}
+        {item.repetitions && <div><dt>Repetições</dt><dd>{item.repetitions}</dd></div>}
+        {item.restSeconds != null && <div><dt>Descanso</dt><dd>{item.restSeconds}s</dd></div>}
+      </dl>}
+      <Card className="exercise-instructions"><AppIcon name="tips" size={24} /><div><h3>Orientações</h3><p>{exercise.instructions ?? "Siga a orientação do seu profissional."}</p>{item?.notes && <p>{item.notes}</p>}{exercise.muscles.length > 0 && <small>Músculos: {exercise.muscles.join(", ")}</small>}</div></Card>
+      <div className="detail-meta"><span>{exercise.category ?? "Exercício"}</span>{exercise.difficulty && <span>{exercise.difficulty}</span>}{exercise.equipment && <span>{exercise.equipment}</span>}</div>
+      <Link className="button button-primary full-width exercise-cta" href={backHref}>Voltar ao treino</Link>
+    </div>;
   } catch { return <div><PageHeader title="Exercício" back backHref={backHref} /><ContentError label="este exercício" /></div>; }
 }

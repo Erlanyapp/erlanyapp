@@ -12,6 +12,13 @@ export const designTokens = {
     textMuted: "#8A7C8D"
   },
   typography: { sans: "Arial, Helvetica, sans-serif", display: "Georgia, serif" },
+  clientTypography: {
+    family: "Roboto",
+    title: { size: "20px", weight: 700, lineHeight: 1.3 },
+    body: { size: "14px", weight: 400, lineHeight: 1.5 },
+    caption: { size: "12px", weight: 400, lineHeight: 1.45 },
+    greeting: { size: "clamp(17px, 4.65vw, 20px)", weight: 700, lineHeight: 1.25 },
+  },
   radius: { sm: "8px", md: "16px", lg: "24px", pill: "999px" },
   shadows: { card: "0 12px 32px rgba(92, 40, 95, 0.10)" },
   spacing: { page: "24px", section: "32px" },

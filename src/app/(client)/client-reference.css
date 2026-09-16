@@ -1,0 +1,164 @@
+/* Reference-specific client composition; never applies to Splash, Auth or Admin. */
+.client-viewport {
+  --client-font-body: var(--font-client-sans), system-ui, sans-serif;
+  --client-font-display: var(--client-font-body);
+  --client-text-title: 20px;
+  --client-text-body: 14px;
+  --client-text-caption: 12px;
+  --client-shadow-raised: 0 5px 15px rgba(91, 44, 97, .09);
+  --client-shadow-soft: 0 2px 8px rgba(91, 44, 97, .055);
+  --client-radius: 14px;
+  font-family: var(--client-font-body);
+}
+.client-viewport .client-shell { background: #fcf8fc; }
+.client-viewport .client-content { background: #fcf8fc; }
+.client-viewport .client-content:has(.home-page) { padding: 0 0 calc(94px + env(safe-area-inset-bottom)); }
+.client-viewport .home-page { display: block; }
+.client-viewport .home-hero {
+  position: relative;
+  padding-bottom: 18px;
+  border-radius: 0 0 28px 28px;
+  background: #66306c;
+  isolation: isolate;
+  box-shadow: 0 7px 18px rgba(76, 33, 82, .10);
+}
+.client-viewport .home-page>.home-hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  box-shadow: none;
+  background-image: linear-gradient(120deg, rgba(84, 38, 90, .45), rgba(117, 53, 125, .15)), url('/assets/branding/a_wide_cinematic_high_resolution_fitness_theme.png');
+  background-size: cover, 210% auto;
+  background-position: center, left 38%;
+}
+.client-viewport .home-hero::after { content: none; }
+.client-viewport .home-hero .app-header {
+  position: relative;
+  inset: auto;
+  height: auto;
+  min-height: 112px;
+  padding: calc(24px + env(safe-area-inset-top)) max(18px, env(safe-area-inset-right)) 20px max(18px, env(safe-area-inset-left));
+  align-items: flex-start;
+  background: none;
+  border-radius: 0;
+  box-shadow: none;
+}
+.client-viewport .home-greeting { gap: 11px; align-items: flex-start; }
+.client-viewport .home-greeting .profile-avatar { width: 52px; height: 52px; flex-basis: 52px; border: 2px solid rgba(255,255,255,.65); box-shadow: 0 3px 8px rgba(38,15,42,.18); }
+.client-viewport .home-greeting h1 { margin: 2px 0 8px; color: #fff; font: 700 clamp(17px, 4.65vw, 20px)/1.25 var(--client-font-body); }
+.client-viewport .home-greeting p { margin: 0; max-width: none; color: #f0e5f3; font: 400 12px/1.45 var(--client-font-body); }
+.client-viewport .app-header .icon-button { background: none; width: 44px; height: 44px; }
+.client-viewport .header-actions { margin-left: 4px; }
+.client-viewport .home-daily-card {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-height: clamp(190px, 56vw, 242px);
+  margin-inline: max(16px, env(safe-area-inset-left)) max(16px, env(safe-area-inset-right));
+  padding: clamp(20px, 5.6vw, 25px);
+  border: 1px solid rgba(255,255,255,.72);
+  border-radius: 18px;
+  background: linear-gradient(115deg, #fcf6fc, #eedbec);
+  box-shadow: 0 7px 16px rgba(43,15,47,.16), inset 0 -3px 0 rgba(201,154,74,.36);
+  overflow: hidden;
+}
+.client-viewport .home-daily-image { position: absolute; inset: 0 0 0 36%; }
+.client-viewport .home-daily-image img { object-fit: cover; object-position: center; }
+.client-viewport .home-daily-card.has-cover::after { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, #faf2fa 0%, rgba(250,242,250,.92) 32%, transparent 64%); pointer-events: none; }
+.client-viewport .home-daily-copy { position: relative; z-index: 1; width: 78%; min-width: 0; }
+.client-viewport .has-cover .home-daily-copy { width: 61%; }
+.client-viewport .home-daily-kicker { margin: 0 0 15px; color: #3e2b42; font: 700 12px/1.3 var(--client-font-body); letter-spacing: .025em; }
+.client-viewport .home-daily-card h2 { margin: 0 0 12px; color: #322136; font: 700 clamp(18px, 5vw, 22px)/1.25 var(--client-font-display); overflow-wrap: anywhere; }
+.client-viewport .home-daily-description { margin: 0; max-width: 23ch; color: #756479; font: 400 14px/1.5 var(--client-font-body); }
+.client-viewport .home-daily-copy .button { margin-top: 22px; min-height: 44px; padding: 11px 18px; font-size: 13px; max-width: 100%; text-align: center; }
+.client-viewport .home-daily-link { display: inline-flex; align-items: center; gap: 6px; margin-top: 16px; min-height: 44px; color: #80388f; font-size: 13px; font-weight: 700; }
+.client-viewport .home-daily-mark { position: absolute; right: 15px; bottom: 30px; color: #ba90be; opacity: .42; transform: rotate(-18deg); pointer-events: none; }
+.client-viewport .home-body { display: grid; gap: 20px; padding: 18px max(16px, env(safe-area-inset-right)) 24px max(16px, env(safe-area-inset-left)); }
+.client-viewport .quick-grid { gap: 10px; }
+.client-viewport .quick-grid a { min-width: 0; }
+.client-viewport .quick-grid .card { min-height: clamp(118px, 34vw, 150px); gap: 13px; padding: 14px 5px; border-radius: 13px; background: linear-gradient(145deg, #fff, #fdf7fc); box-shadow: var(--client-shadow-raised); }
+.client-viewport .quick-grid strong { color: #4b3350; font: 500 clamp(12px, 3.3vw, 15px)/1.4 var(--client-font-body); }
+.client-viewport .quick-icon { display: grid; place-items: center; color: #8c459c; }
+.client-viewport .home-body .quote-card { position: relative; min-height: clamp(128px, 36vw, 158px); padding: 22px 35px; border-radius: 16px; background: #eeddef; box-shadow: var(--client-shadow-soft); gap: 0; }
+.client-viewport .quote-card p { color: #523657; font: 400 clamp(15px, 4vw, 18px)/1.6 var(--client-font-body); }
+.client-viewport .quote-mark { position: absolute; top: 20px; left: 14px; width: 32px; height: 32px; color: #d9bddc; }
+.client-viewport .quote-mark-end { top: auto; left: auto; right: 14px; bottom: 20px; transform: rotate(180deg); }
+.client-viewport .page-header h1 { color: #35243b; font: 700 var(--client-text-title)/1.3 var(--client-font-display); }
+.client-viewport .page-header { margin-bottom: 16px; }
+.client-viewport .empty-state h2 { font: 500 18px/1.35 var(--client-font-display); }
+.client-viewport .empty-state p { font: 400 13px/1.5 var(--client-font-body); }
+.client-viewport .client-content .segmented a { border-radius: 9px; font-family: var(--client-font-body); font-size: 12px; }
+.client-viewport .bottom-navigation { min-height: 74px; background: #fff; border-top: 1px solid #e8dfe9; box-shadow: 0 -2px 7px rgba(79,39,86,.035); }
+.client-viewport .bottom-navigation a { color: #978b9a; gap: 5px; }
+.client-viewport .bottom-navigation a.active { color: #873b97; }
+.client-viewport .bottom-navigation small { font: 400 10px/1.2 var(--client-font-body); }
+.client-viewport .bottom-navigation a.active small { font-weight: 700; }
+.client-viewport .card:not(.quote-card) { border-radius: var(--client-radius); box-shadow: var(--client-shadow-soft); }
+.client-viewport .quick-grid .card { box-shadow: var(--client-shadow-raised); }
+.client-viewport .more-list { gap: 0; border-radius: 14px; background: #fff; }
+.client-viewport .more-list .category-row { min-height: 58px; border-radius: 0; box-shadow: none; border-bottom: 1px solid #f0e8f1; background: none; }
+.client-viewport .more-list .category-row strong { font: 500 14px/1.4 var(--client-font-body); }
+.client-viewport .more-list .logout-row { border-radius: 0 0 14px 14px; background: none; }
+.client-viewport .card.profile-summary { background: none; box-shadow: none; padding: 10px 5px 20px; gap: 14px; }
+.client-viewport .profile-summary .profile-avatar { width: 54px; height: 54px; flex-basis: 54px; }
+.client-viewport .profile-summary strong { font-size: 16px; color: #3e2b42; }
+.client-viewport .profile-summary small { font-size: 12px; }
+.client-viewport .account-form input,.client-viewport .account-form textarea,.client-viewport .client-filters input,.client-viewport .client-filters select { font-family: var(--client-font-body); }
+.client-viewport .account-panel h2,.client-viewport .section-header h2,.client-viewport .content-hero h2 { font-family: var(--client-font-display); }
+.client-viewport .tip-hero { position: relative; min-height: clamp(180px,50vw,240px); padding: 24px; background: #5c285f url('/assets/branding/a_wide_cinematic_high_resolution_fitness_theme.png') right top / 150% auto no-repeat; isolation: isolate; }
+.client-viewport .tip-hero::before { content: ""; position: absolute; inset: 0; z-index: -1; background: linear-gradient(90deg, rgba(54,24,58,.8), transparent 75%); }
+.client-viewport .tip-hero>div { max-width: 48%; }
+.client-viewport .tip-hero>span { display: none; }
+.client-viewport .tip-hero h2 { max-width: 14ch; font: 500 19px/1.4 var(--client-font-body); }
+.client-viewport .tip-hero p:not(.eyebrow) { font: 400 12px/1.45 var(--client-font-body); }
+.client-viewport .content-hero { margin-bottom: 16px; }
+.client-viewport .workout-filter-details { margin: 0 0 16px; }
+.client-viewport .workout-filter-details summary { display: flex; align-items: center; justify-content: space-between; min-height: 44px; cursor: pointer; color: #7d5185; font-size: 12px; }
+.client-viewport .workout-category-list { display: grid; gap: 9px; }
+.client-viewport .workout-category-row { display: grid; grid-template-columns: 64px minmax(0,1fr) 18px; gap: 12px; min-height: 78px; padding: 7px 13px 7px 7px; background: #f1e8f1; color: #83568b; }
+.client-viewport .workout-category-image { position: relative; display: grid; place-items: center; width: 64px; height: 64px; overflow: hidden; border-radius: 10px; }
+.client-viewport .workout-category-image img { object-fit: cover; }
+.client-viewport .workout-category-row strong { display: block; color: #38253d; font-size: 15px; }
+.client-viewport .workout-category-row small { display: block; margin-top: 5px; color: #8c7691; font-size: 12px; }
+.client-viewport .plan-card { display: flex; align-items: center; justify-content: space-between; gap: 15px; min-height: 135px; background: #f2e5f1; padding: 20px; }
+.client-viewport .plan-card>div { min-width: 0; }
+.client-viewport .plan-card>svg { flex: none; color: #6a3b6d; }
+.client-viewport .plan-card h2 { margin: 0 0 8px; font: 700 17px/1.3 var(--client-font-body); }
+.client-viewport .plan-price { margin: 12px 0 0; color: #4f2c55; font-size: 19px; font-weight: 700; }
+.client-viewport .plans-reference-intro { padding: 15px 0 24px; text-align: center; color: #c79b55; }
+.client-viewport .plans-reference-intro h1 { margin: 12px 0 10px; color: #67326e; font-size: 21px; }
+.client-viewport .plans-reference-intro p { margin: 0; color: #79637e; font-size: 14px; line-height: 1.5; }
+.client-viewport .client-content:has(.plans-reference-intro) { padding-top: calc(24px + env(safe-area-inset-top)); }
+.client-viewport .plans-availability { margin-top: 20px; font-size: 12px; line-height: 1.5; color: #927b98; text-align: center; }
+.client-viewport .plans-list .plan-card:nth-child(2) { background: linear-gradient(115deg,#f4dba7,#d9ad72); }
+.client-viewport .plan-card .eyebrow { color: #4a2c4f; letter-spacing: 0; font: 700 16px/1.3 var(--client-font-body); }
+.client-viewport .plan-card .muted { color: #69546c; font-size: 13px; }
+.client-viewport .progress-card { padding: 20px 16px; }
+.client-viewport .exercise-name { margin: 16px 0 8px; color: #38243d; font: 700 20px/1.3 var(--client-font-body); }
+.client-viewport .exercise-description { margin: 0 0 16px; font: 400 14px/1.5 var(--client-font-body); color: #6c5971; }
+.client-viewport .exercise-prescription { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 10px; margin: 0 0 18px; }
+.client-viewport .exercise-prescription>div { min-width: 0; padding: 16px 6px; text-align: center; border-radius: 12px; background: #f0e6f0; }
+.client-viewport .exercise-prescription dt { font-size: 12px; color: #86718b; }
+.client-viewport .exercise-prescription dd { margin: 8px 0 0; font-size: 18px; font-weight: 700; color: #38243d; overflow-wrap: anywhere; }
+.client-viewport .exercise-instructions { display: flex; align-items: flex-start; gap: 10px; padding: 18px 15px; background: #efdef0; color: #a67b31; }
+.client-viewport .exercise-instructions>svg { flex: none; }
+.client-viewport .exercise-instructions h3 { margin: 0 0 8px; font-size: 15px; color: #49304f; }
+.client-viewport .exercise-instructions p,.client-viewport .exercise-instructions small { font-size: 13px; line-height: 1.5; color: #785f7e; }
+.client-viewport .progress-summary strong { font: 700 24px/1.3 var(--client-font-body); }
+.client-viewport .progress-encouragement { display: flex; align-items: center; gap: 17px; min-height: 125px; margin-block: 18px; padding: 22px; color: #91439f; background: #eedbef; }
+.client-viewport .progress-encouragement strong { color: #523157; font-size: 16px; }
+.client-viewport .progress-encouragement p { margin: 8px 0 0; color: #795a7f; font-size: 13px; line-height: 1.5; }
+.client-viewport .progress-encouragement+.action-details { padding: 0; background: none; box-shadow: none; }
+.client-viewport .progress-encouragement+.action-details>summary { display: flex; align-items: center; justify-content: center; min-height: 48px; border-radius: 999px; background: #93479f; color: #fff; font-size: 14px; font-weight: 500; }
+@media (max-width: 360px) {
+  .client-viewport .home-hero .app-header { padding-inline: 16px; min-height: 106px; }
+  .client-viewport .home-greeting .profile-avatar { width: 48px; height: 48px; flex-basis: 48px; }
+  .client-viewport .home-greeting h1 { font-size: 17px; }
+  .client-viewport .home-greeting p { font-size: 11px; }
+  .client-viewport .quick-grid { gap: 8px; }
+  .client-viewport .home-daily-copy { width: 82%; }
+  .client-viewport .home-daily-description { font-size: 13px; }
+  .client-viewport .home-body { gap: 17px; }
+}

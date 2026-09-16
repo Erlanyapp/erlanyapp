@@ -1,13 +1,24 @@
 import Link from "next/link";
-import { Card, EmptyState, SectionHeader } from "@/components/ui";
-import { WorkoutCard } from "@/components/client/client-components";
+import { Card } from "@/components/ui";
+import { HomeDailyWorkout } from "@/components/client/home-daily-workout";
+import { AppHeader } from "@/components/layout/app-header";
 import { getContentService } from "@/services/server-content";
-import { ContentError } from "@/components/client/content-states";
+import { getClientAccount } from "@/services/server-account";
 import { AppIcon } from "@/components/icons";
 
 export default async function HomePage() {
-  const service = await getContentService();
+  const [{ account }, service] = await Promise.all([getClientAccount(), getContentService()]);
   let loadError = !service;
   const workouts = service ? await service.listWorkouts().catch(() => { loadError = true; return []; }) : [];
-  return <div className="home-page"><section><SectionHeader title="Treino do dia" action={<span className="section-kicker">PRÓXIMO</span>} />{loadError ? <ContentError label="seu treino do dia" /> : workouts[0] ? <WorkoutCard workout={workouts[0]} /> : <EmptyState title="Nenhum treino disponível" description="Seu próximo treino aparecerá aqui quando for liberado." />}</section><section><SectionHeader title="Atalhos" /><div className="quick-grid"><Link href="/app/evolucao"><Card><span className="quick-icon"><AppIcon name="progress" /></span><strong>Meu<br />progresso</strong></Card></Link><Link href="/app/alimentacao"><Card><span className="quick-icon"><AppIcon name="nutrition" /></span><strong>Minha<br />alimentação</strong></Card></Link><Link href="/app/dicas"><Card><span className="quick-icon"><AppIcon name="tips" /></span><strong>Dicas da<br />Erlany</strong></Card></Link></div></section><Card className="quote-card"><span>“</span><p>Corpo saudável,<br />mente mais forte!</p><span>”</span></Card></div>;
+  return <div className="home-page">
+    <section className="home-hero" aria-label="Seu cuidado de hoje"><AppHeader account={account} /><HomeDailyWorkout workout={workouts[0]} loadError={loadError} /></section>
+    <div className="home-body">
+      <nav className="quick-grid" aria-label="Atalhos da Home">
+        <Link href="/app/evolucao"><Card><span className="quick-icon"><AppIcon name="progress" size={30} /></span><strong>Meu<br />progresso</strong></Card></Link>
+        <Link href="/app/alimentacao"><Card><span className="quick-icon"><AppIcon name="nutrition" size={30} /></span><strong>Minha<br />alimentação</strong></Card></Link>
+        <Link href="/app/dicas"><Card><span className="quick-icon"><AppIcon name="tips" size={30} /></span><strong>Dicas da<br />Erlany</strong></Card></Link>
+      </nav>
+      <Card className="quote-card"><svg className="quote-mark" viewBox="0 0 32 32" aria-hidden="true"><path d="M14 6C6 9 3 15 3 22h11V12H8c1-2 3-4 6-5V6Zm15 0c-8 3-11 9-11 16h11V12h-6c1-2 3-4 6-5V6Z" fill="currentColor" /></svg><p>“Corpo saudável,<br />mente mais forte!”</p><svg className="quote-mark quote-mark-end" viewBox="0 0 32 32" aria-hidden="true"><path d="M14 6C6 9 3 15 3 22h11V12H8c1-2 3-4 6-5V6Zm15 0c-8 3-11 9-11 16h11V12h-6c1-2 3-4 6-5V6Z" fill="currentColor" /></svg></Card>
+    </div>
+  </div>;
 }

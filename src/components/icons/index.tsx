@@ -1,9 +1,10 @@
 import type { ReactNode, SVGProps } from "react";
 
-export type IconName = "home" | "workout" | "progress" | "nutrition" | "tips" | "more" | "profile" | "settings" | "achievement" | "bell" | "chat" | "help" | "logout" | "arrow-right" | "sparkle";
+export type IconName = "home" | "workout" | "progress" | "nutrition" | "tips" | "more" | "profile" | "settings" | "achievement" | "bell" | "chat" | "help" | "logout" | "arrow-right" | "sparkle" | "crown";
 type IconProps = SVGProps<SVGSVGElement> & { name: IconName; size?: number };
 
 const paths: Record<IconName, ReactNode> = {
+  crown: <><path d="m3 6 4 4 5-7 5 7 4-4-2 13H5L3 6Z" fill="currentColor" /><path d="M6 22h12" /></>,
   home: <><path d="m3 10 9-7 9 7" /><path d="M5 9v10h14V9M9 19v-6h6v6" /></>,
   workout: <><path d="M6 8v8M3.5 10v4M18 8v8M20.5 10v4M6 12h12" /></>,
   progress: <><path d="M4 18V6M4 18h16" /><path d="m7 14 3-3 2 2 5-6" /></>,
