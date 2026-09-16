@@ -3,6 +3,7 @@ import { Card, SectionHeader } from "@/components/ui";
 import type { Category, Plan, Tip } from "@/data/client-mocks";
 import type { ProgressWeight, Workout, Tip as ContentTip } from "@/types/content";
 import { videoProviders } from "@/lib/content/video-provider";
+import { AppIcon, iconNameFromSymbol } from "@/components/icons";
 
 export function Hero({ eyebrow, title, description, icon = "✦", className = "" }: { eyebrow?: string; title: string; description?: string; icon?: string; className?: string }) {
   return <Card className={`content-hero ${className}`}><div>{eyebrow && <p className="eyebrow">{eyebrow}</p>}<h2>{title}</h2>{description && <p>{description}</p>}</div><span aria-hidden="true">{icon}</span></Card>;
@@ -13,7 +14,7 @@ export function TabNavigation({ tabs, selected }: { tabs: string[]; selected: st
 }
 
 export function CategoryCard({ category }: { category: Category }) {
-  return <Card className="category-row"><span className={`category-art ${category.tone}`} aria-hidden="true">{category.icon}</span><span><strong>{category.name}</strong><small>{category.subtitle}</small></span><b aria-hidden="true">›</b></Card>;
+  return <Card className="category-row"><span className={`category-art ${category.tone}`}><AppIcon name={iconNameFromSymbol(category.icon)} size={21} /></span><span><strong>{category.name}</strong><small>{category.subtitle}</small></span><AppIcon name="arrow-right" className="row-arrow" size={19} /></Card>;
 }
 
 export function WorkoutCard({ workout }: { workout: Workout }) {
@@ -33,8 +34,8 @@ export function ProgressCard({ weights = [] }: { weights?: ProgressWeight[] }) {
   return <Card className="progress-card"><div className="progress-summary"><div><p className="muted">Meu peso</p><strong>{current ? `${current.value} kg` : "—"}</strong></div><span className="progress-change">{current ? `Atualizado em ${new Date(`${current.recordedAt}T12:00:00`).toLocaleDateString("pt-BR")}` : "Acompanhe seu progresso"}</span></div>{weights.length ? <div className="progress-history">{weights.map((weight) => <div className="progress-history-row" key={weight.id}><span>{new Date(`${weight.recordedAt}T12:00:00`).toLocaleDateString("pt-BR")}</span><strong>{weight.value} kg</strong></div>)}</div> : <div className="chart-placeholder" aria-label="Histórico de peso vazio"><span>Seu histórico aparecerá aqui</span></div>}<button className="button button-primary full-width" type="button">Registrar peso</button></Card>;
 }
 
-export function TipCard({ tip }: { tip: Tip | ContentTip }) { return <Card className="tip-card"><span className="tip-icon">{"icon" in tip ? tip.icon : "✦"}</span><div><small>{"category" in tip ? tip.category : "Dica"}</small><strong>{tip.title}</strong>{"summary" in tip && tip.summary && <p className="muted">{tip.summary}</p>}{!(("summary" in tip) && tip.summary) && "content" in tip && <p className="muted">{tip.content}</p>}</div><b aria-hidden="true">›</b></Card>; }
-export function FoodCard({ title, description, icon }: { title: string; description: string; icon: string }) { return <Card className="food-card"><span className="food-icon">{icon}</span><div><strong>{title}</strong><p>{description}</p></div><b aria-hidden="true">›</b></Card>; }
+export function TipCard({ tip }: { tip: Tip | ContentTip }) { return <Card className="tip-card"><span className="tip-icon"><AppIcon name={"icon" in tip ? iconNameFromSymbol(tip.icon) : "sparkle"} /></span><div><small>{"category" in tip ? tip.category : "Dica"}</small><strong>{tip.title}</strong>{"summary" in tip && tip.summary && <p className="muted">{tip.summary}</p>}{!(("summary" in tip) && tip.summary) && "content" in tip && <p className="muted">{tip.content}</p>}</div><AppIcon name="arrow-right" className="row-arrow" size={19} /></Card>; }
+export function FoodCard({ title, description, icon }: { title: string; description: string; icon: string }) { return <Card className="food-card"><span className="food-icon"><AppIcon name={iconNameFromSymbol(icon)} /></span><div><strong>{title}</strong><p>{description}</p></div><AppIcon name="arrow-right" className="row-arrow" size={19} /></Card>; }
 
 export function PlanCard({ plan }: { plan: Plan }) { return <Card className={`plan-card ${plan.featured ? "featured" : ""}`}>{plan.featured && <span className="plan-badge">MAIS ESCOLHIDO</span>}<p className="eyebrow">{plan.name.toUpperCase()}</p><h2>{plan.price}</h2><p className="muted">{plan.description}</p><ul>{plan.features.map((feature) => <li key={feature}>✓ {feature}</li>)}</ul><button className={`button ${plan.featured ? "button-primary" : "button-outline"}`} type="button">Conhecer plano</button></Card>; }
 
