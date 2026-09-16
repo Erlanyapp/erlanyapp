@@ -6,7 +6,7 @@ import { videoProviders } from "@/lib/content/video-provider";
 import { AppIcon, iconNameFromSymbol } from "@/components/icons";
 
 export function Hero({ eyebrow, title, description, icon = "✦", className = "" }: { eyebrow?: string; title: string; description?: string; icon?: string; className?: string }) {
-  return <Card className={`content-hero ${className}`}><div>{eyebrow && <p className="eyebrow">{eyebrow}</p>}<h2>{title}</h2>{description && <p>{description}</p>}</div><span aria-hidden="true">{icon}</span></Card>;
+  return <Card className={`content-hero ${className}`}><div>{eyebrow && <p className="eyebrow">{eyebrow}</p>}<h2>{title}</h2>{description && <p>{description}</p>}</div><span aria-hidden="true"><AppIcon name={iconNameFromSymbol(icon)} size={54} /></span></Card>;
 }
 
 export function TabNavigation({ tabs, selected }: { tabs: string[]; selected: string }) {
