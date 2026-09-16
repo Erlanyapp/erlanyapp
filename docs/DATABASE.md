@@ -22,3 +22,9 @@ Applied migrations: `20260916122122_client_functional_interactions.sql` and `202
 - Weight INSERT, performance SELECT, earned-achievement details SELECT and support-message INSERT are restricted to ownership through `clients.user_id`. Support sender must equal `auth.uid()`.
 - CLIENT workout reads require `is_active = true` and `status = 'published'`. Draft/inactive access remains available to ADMIN; the client repository always filters released/owned content, even when ADMIN browses the client shell.
 - Image replacements use unique filenames and preserve previous files. Failed profile persistence cleans up only the newly uploaded orphan. Future retention cleanup must be explicit, not destructive during profile editing.
+
+## Admin CRM — Fase 4.2
+
+Migration `20260916145818_admin_client_crm.sql` aplicada no projeto oficial: adiciona o espelho somente leitura `profiles.email`, sincronizado por triggers internos de Auth; FK `clients.user_id → profiles.id`; índices de paginação/filtros; policy ADMIN de edição de perfil e guarda de identidade/plano/status em clients. Não há novas identidades, dados fictícios, reset ou exclusão.
+
+A boundary de avatar passou a separar leitura e escrita: ADMIN pode consultar fotos reais dos clientes; INSERT/UPDATE/DELETE de avatars continuam restritos ao proprietário, inclusive para ADMIN. E-mail não é autorização. Status ativo/inativo de clients não bloqueia Auth nem modifica assinatura. Ver [ADMIN_CRM.md](ADMIN_CRM.md) e o teste transacional `test/sql/admin-crm-security.sql`.

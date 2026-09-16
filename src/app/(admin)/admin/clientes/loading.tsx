@@ -1,0 +1,1 @@
+export default function LoadingClients() {return <div className="crm-skeleton" role="status" aria-label="Carregando clientes"><div className="crm-skeleton-title"/><div className="crm-skeleton-filters"/>{Array.from({length:6},(_,i)=><div className="crm-skeleton-row" key={i}/>)}<span className="sr-only">Carregando clientes…</span></div>;}

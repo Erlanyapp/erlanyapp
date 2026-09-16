@@ -1,0 +1,9 @@
+import Link from "next/link";
+import type { AdminSearchParams } from "@/domain/admin-client";
+const value=(x:string|string[]|undefined)=>typeof x==="string"?x:"";
+export function AdminClientFilters({params,plans}:{params:AdminSearchParams;plans:{id:string;name:string}[]}) {
+  return <form className="crm-filters" action="/admin/clientes"><label className="crm-search">Buscar cliente<input name="q" defaultValue={value(params.q)} maxLength={100} placeholder="Nome ou e-mail"/></label><label>Status do cadastro<select name="status" defaultValue={value(params.status)||"all"}><option value="all">Todos</option><option value="active">Ativos</option><option value="inactive">Inativos</option></select></label><label>Plano<select name="plan" defaultValue={value(params.plan)||"all"}><option value="all">Todos os planos</option>{plans.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}</select></label><label>Cadastrado de<input type="date" name="from" defaultValue={value(params.from)}/></label><label>Até<input type="date" name="to" defaultValue={value(params.to)}/></label><div className="crm-filter-actions"><button className="button button-primary" type="submit">Aplicar filtros</button><Link href="/admin/clientes">Limpar</Link></div></form>;
+}
+export function AddClientRegistration() {
+  return <details className="crm-registration"><summary className="button button-primary">Adicionar cliente</summary><div><h3>Cadastro oficial</h3><p>Compartilhe o link abaixo. O cadastro cria a conta Auth, o perfil e o cliente pelo fluxo existente.</p><input aria-label="Link de cadastro" readOnly value="https://meuapp-zeta.vercel.app/cadastro"/><Link href="/cadastro" target="_blank" rel="noopener noreferrer">Abrir cadastro em nova aba</Link><p>Não são enviados convites nem criadas contas privilegiadas por este botão.</p></div></details>;
+}
