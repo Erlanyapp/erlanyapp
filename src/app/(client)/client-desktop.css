@@ -1,0 +1,179 @@
+/* Mobile layout is unchanged: desktop elements have no mobile layout box. */
+.client-viewport .client-desktop-only { display: none; }
+.client-viewport .client-workspace { display: contents; }
+
+@media (min-width: 768px) {
+  .client-viewport {
+    --desktop-sidebar-width: 208px;
+    --desktop-gutter: clamp(24px, 3vw, 56px);
+    width: 100%;
+    min-height: 100vh;
+    min-height: 100dvh;
+    padding: 0;
+    display: block;
+    background: #fcf8fc;
+  }
+  .client-viewport .client-shell {
+    display: grid;
+    grid-template-columns: var(--desktop-sidebar-width) minmax(0, 1fr);
+    width: 100%;
+    height: auto;
+    min-height: 100vh;
+    min-height: 100dvh;
+    margin: 0;
+    border-radius: 0;
+    overflow: visible;
+    box-shadow: none;
+  }
+  .client-viewport .client-workspace { display: block; min-width: 0; }
+  .client-viewport .bottom-navigation { display: none; }
+  .client-viewport .desktop-sidebar {
+    position: sticky;
+    top: 0;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    height: 100dvh;
+    min-width: 0;
+    padding: 22px 14px 18px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    background: linear-gradient(180deg, #fff 0%, #f8eff9 100%);
+    border-right: 1px solid #ebdfed;
+    z-index: 40;
+  }
+  .client-viewport .desktop-brand { display: flex; align-items: center; justify-content: center; flex: none; margin: 0 0 20px; }
+  .client-viewport .desktop-brand img { width: 112px; height: 126px; object-fit: contain; }
+  .client-viewport .desktop-sidebar nav { display: grid; gap: 4px; }
+  .client-viewport .desktop-sidebar nav a { display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 11px 12px; border-radius: 10px; color: #806988; font-size: 13px; line-height: 1.4; }
+  .client-viewport .desktop-sidebar nav svg { flex: none; }
+  .client-viewport .desktop-sidebar nav a.active { color: #773286; background: #efdef3; font-weight: 700; box-shadow: inset 3px 0 0 #9747a4; }
+  .client-viewport .desktop-sidebar nav a:hover { background: #f0e5f3; }
+  .client-viewport .desktop-account-area { margin-top: auto; padding-top: 24px; }
+  .client-viewport .desktop-account-area>p { margin: 0 12px 10px; color: #a48ba9; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; }
+  .client-viewport .desktop-logout { padding-top: 10px; margin-top: 12px; border-top: 1px solid #e9ddeb; }
+  .client-viewport .desktop-logout .logout-row { width: 100%; display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 10px 12px; border: 0; border-radius: 10px; color: #806988; background: transparent; cursor: pointer; text-align: left; }
+  .client-viewport .desktop-logout .tip-icon { display: flex; width: 20px; color: inherit; }
+  .client-viewport .desktop-logout strong { font: 500 13px var(--client-font-body); }
+  .client-viewport .desktop-logout .row-arrow { display: none; }
+  .client-viewport .desktop-logout [role=alert] { font-size: 12px; line-height: 1.5; color: #96385b; }
+  .client-viewport .desktop-header { display: flex; position: sticky; top: 0; z-index: 35; align-items: center; justify-content: space-between; gap: 20px; min-height: 88px; padding: 16px var(--desktop-gutter); background: rgba(255,255,255,.96); border-bottom: 1px solid #eee4ef; }
+  .client-viewport .desktop-page-context { min-width: 0; }
+  .client-viewport .desktop-page-context>span { color: #9c84a1; font-size: 11px; }
+  .client-viewport .desktop-page-context p { margin: 5px 0 0; color: #55315d; font-size: 19px; font-weight: 700; }
+  .client-viewport .desktop-header-actions { display: flex; align-items: center; gap: 20px; min-width: 0; }
+  .client-viewport .desktop-notifications { display: grid; place-items: center; width: 44px; height: 44px; color: #8d5697; border: 1px solid #ecdff0; border-radius: 50%; flex: none; }
+  .client-viewport .desktop-profile { display: flex; align-items: center; gap: 12px; min-width: 0; color: #694171; font-size: 13px; }
+  .client-viewport .desktop-profile>span:first-child { max-width: 24ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .client-viewport .desktop-profile .profile-avatar { width: 42px; height: 42px; flex-basis: 42px; }
+  .client-viewport :is(.desktop-sidebar,.desktop-header) :is(a,button):focus-visible { outline: 2px solid #9747a4; outline-offset: 2px; }
+  .client-viewport .client-content,
+  .client-viewport .client-content:has(.page-header),
+  .client-viewport .client-content:not(:has(.page-header)),
+  .client-viewport .client-content:has(.home-page),
+  .client-viewport .client-content:has(.plans-reference-intro) {
+    width: 100%; height: auto; min-height: calc(100vh - 88px); min-height: calc(100dvh - 88px);
+    padding: 32px var(--desktop-gutter) 48px;
+    overflow: visible;
+  }
+  .client-viewport .client-content>div { min-width: 0; }
+  .client-viewport .page-header { justify-content: flex-start; min-height: 48px; gap: 14px; margin-bottom: 24px; }
+  .client-viewport .page-header h1 { position: static; transform: none; text-align: left; font-size: 25px; }
+  .client-viewport .page-header .icon-button { flex: none; }
+  .client-viewport .segmented { width: fit-content; margin-bottom: 24px; }
+  .client-viewport .empty-state { max-width: none; min-height: 250px; padding: 50px 24px; border: 1px dashed #e4d3e8; border-radius: 18px; background: #fff; }
+  .client-viewport .empty-state h2 { font-size: 20px; }
+  .client-viewport .empty-state p { max-width: 48ch; margin-inline: auto; font-size: 14px; }
+  .client-viewport .home-hero { padding: 0 28px 28px; border-radius: 22px; }
+  .client-viewport .home-page>.home-hero::before { background-size: cover, cover; background-position: center, left center; }
+  .client-viewport .home-hero .app-header { min-height: 126px; padding: 28px 0 24px; }
+  .client-viewport .home-greeting h1 { font-size: 26px; }
+  .client-viewport .home-greeting p { font-size: 14px; }
+  .client-viewport .home-hero .header-actions { display: none; }
+  .client-viewport .home-daily-card { margin: 0; min-height: 220px; padding: 28px; max-width: 820px; }
+  .client-viewport .home-daily-card h2 { font-size: 26px; }
+  .client-viewport .home-daily-description { max-width: 40ch; font-size: 15px; }
+  .client-viewport .home-daily-mark { right: 35px; bottom: 45px; }
+  .client-viewport .home-body { padding: 24px 0 0; gap: 24px; }
+  .client-viewport .quick-grid { gap: 18px; }
+  .client-viewport .quick-grid .card { min-height: 142px; padding: 24px; gap: 14px; }
+  .client-viewport .quick-grid strong { font-size: 16px; }
+  .client-viewport .home-body .quote-card { min-height: 132px; padding: 28px 50px; }
+  .client-viewport .quote-card p { font-size: 19px; }
+  .client-viewport .workout-category-list,.client-viewport .workout-list,.client-viewport .tip-list,.client-viewport .food-list,.client-viewport .content-list { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(100%,300px),1fr)); gap: 20px; align-items: start; }
+  .client-viewport :is(.workout-list,.tip-list,.food-list,.content-list)>.empty-state { grid-column: 1 / -1; }
+  .client-viewport .workout-feature { min-height: 240px; padding: 26px; }
+  .client-viewport .workout-feature .workout-copy { max-width: 75%; }
+  .client-viewport .workout-category-row { min-height: 98px; grid-template-columns: 80px minmax(0,1fr) 20px; padding: 9px 18px 9px 9px; }
+  .client-viewport .workout-category-image { width: 80px; height: 80px; }
+  .client-viewport .client-filters { max-width: 100%; margin-bottom: 24px; gap: 16px; }
+  .client-viewport .workout-filter-details { max-width: 860px; }
+  .client-viewport .progress-card { padding: 28px; }
+  .client-viewport .progress-card .chart-placeholder { height: 260px; }
+  .client-viewport .weight-chart { height: 280px; }
+  .client-viewport .progress-encouragement { margin: 24px 0; }
+  .client-viewport .action-details { min-width: 0; }
+  .client-viewport .photo-grid { grid-template-columns: repeat(auto-fit,minmax(min(100%,260px),1fr)); gap: 20px; }
+  .client-viewport .progress-photo { max-height: 500px; object-fit: contain; }
+  .client-viewport .content-hero { min-height: 210px; padding: 32px; margin-bottom: 24px; border-radius: 18px; }
+  .client-viewport .content-hero h2 { font-size: 26px; }
+  .client-viewport .content-hero p:not(.eyebrow) { font-size: 15px; }
+  .client-viewport .tip-hero { min-height: 280px; background-size: cover; background-position: right 22%; }
+  .client-viewport .tip-hero h2 { font-size: 26px; }
+  .client-viewport .tip-card,.client-viewport .food-card { min-height: 112px; padding: 22px; }
+  .client-viewport .tip-card strong,.client-viewport .food-card strong { font-size: 17px; }
+  .client-viewport .plans-reference-intro { text-align: left; padding: 0 0 28px; }
+  .client-viewport .plans-reference-intro h1 { font-size: 26px; }
+  .client-viewport .plans-list { grid-template-columns: repeat(auto-fit,minmax(min(100%,260px),1fr)); gap: 24px; }
+  .client-viewport .plan-card { min-height: 200px; padding: 28px; }
+  .client-viewport .plan-card h2 { font-size: 22px; }
+  .client-viewport .plan-price { font-size: 26px; }
+  .client-viewport .plans-availability { text-align: left; }
+  .client-viewport .more-list { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 18px; background: none; }
+  .client-viewport .more-list .category-row { min-height: 94px; padding: 22px; border: 1px solid #f0e6f1; border-radius: 16px; background: #fff; box-shadow: var(--client-shadow-soft); }
+  .client-viewport .more-list .category-row strong { font-size: 15px; }
+  .client-viewport .card.profile-summary { padding: 20px 0 28px; }
+  .client-viewport .profile-summary .profile-avatar { width: 64px; height: 64px; flex-basis: 64px; }
+  .client-viewport .profile-summary strong { font-size: 21px; }
+  .client-viewport .account-panel { padding: 28px; }
+  .client-viewport .account-form { width: 100%; max-width: 860px; padding: 28px; }
+  .client-viewport .account-data { grid-template-columns: minmax(120px,1fr) minmax(0,3fr); }
+  .client-viewport .account-panel>.button { width: auto; min-width: 200px; }
+  .client-viewport .exercise-reference-page { display: grid; grid-template-columns: minmax(0,1.7fr) minmax(240px,1fr); column-gap: 28px; align-items: start; }
+  .client-viewport .exercise-reference-page>.page-header { grid-column: 1/-1; }
+  .client-viewport .exercise-reference-page>.video-player { grid-column: 1; grid-row: 2/7; }
+  .client-viewport .exercise-reference-page>:is(.exercise-name,.exercise-description,.exercise-prescription,.exercise-instructions,.detail-meta,.exercise-cta) { grid-column: 2; min-width: 0; }
+  .client-viewport .exercise-name { margin-top: 0; font-size: 24px; }
+  .client-viewport .desktop-sidebar :is(a,button),.client-viewport .desktop-header a { scroll-margin-top: 100px; }
+  .client-viewport .client-content :is(a,button,input,select,textarea,summary) { scroll-margin-top: 112px; }
+}
+@media (min-width: 1024px) {
+  .client-viewport .client-content>div:has(>.progress-card) { display: grid; grid-template-columns: minmax(0,2fr) minmax(260px,1fr); gap: 24px; align-items: start; }
+  .client-viewport .client-content>div:has(>.progress-card)>:is(.page-header,.segmented) { grid-column: 1/-1; margin-bottom: 0; }
+  .client-viewport .client-content>div:has(>.progress-card)>.progress-card { grid-column: 1; grid-row: 3/5; }
+  .client-viewport .client-content>div:has(>.progress-card)>.progress-encouragement { grid-column: 2; margin: 0; }
+  .client-viewport .client-content>div:has(>.progress-card)>.action-details { grid-column: 2; margin: 0; }
+}
+@media (min-width: 1280px) {
+  .client-viewport { --desktop-sidebar-width: 240px; }
+  .client-viewport .desktop-sidebar { padding-inline: 20px; }
+  .client-viewport .desktop-sidebar nav a { font-size: 14px; }
+  .client-viewport .home-body { grid-template-columns: minmax(0,2fr) minmax(0,1fr); align-items: stretch; }
+  .client-viewport .home-body .quote-card { min-height: 164px; }
+  .client-viewport .quick-grid .card { min-height: 164px; }
+  .client-viewport .more-list { grid-template-columns: repeat(3,minmax(0,1fr)); }
+}
+@media (min-width: 1920px) {
+  .client-viewport { --desktop-sidebar-width: 264px; }
+  .client-viewport .home-daily-card { max-width: 1000px; }
+}
+@media (min-width: 768px) and (max-width: 1023px) {
+  .client-viewport .desktop-profile>span:first-child { display: none; }
+  .client-viewport .desktop-header-actions { gap: 12px; }
+  .client-viewport .home-hero { padding-inline: 24px; }
+  .client-viewport .quick-grid { gap: 12px; }
+  .client-viewport .quick-grid .card { padding: 18px 10px; }
+  .client-viewport .quick-grid strong { font-size: 14px; }
+  .client-viewport .exercise-reference-page { display: block; }
+  .client-viewport .exercise-name { margin-top: 20px; }
+}
