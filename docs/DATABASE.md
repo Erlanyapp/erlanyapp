@@ -11,3 +11,14 @@ Large files belong in Supabase Storage under logical image/client/global/progres
 Migration `20260915223812_content_foundation.sql` evolves the existing Phase 0 tables without deleting data. It adds stable slugs and active flags for exercises, workouts, tips and recipes; provider validation for videos; typed media metadata; and normalized `nutrition_meals` and `recipe_ingredients` tables. `media_assets` references Supabase Storage objects; binary photos are never stored in PostgreSQL.
 
 All content tables have RLS. Authenticated clients can read only `GLOBAL` rows or rows whose `client_id` resolves through their own `clients.user_id`. Admin management policies use the server-managed `app_metadata.role` claim, never editable `user_metadata`. Workout exercise and recipe ingredient reads inherit access from their parent content row. The `images` Storage bucket is private and follows the same global/client ownership rules.
+
+## Client functional audit
+
+Applied migrations: `20260916122122_client_functional_interactions.sql` and `20260916125441_client_workout_release_access.sql`.
+
+- Reuse the **private** `images` bucket. Profile photos use `avatars/<auth-user-id>/<random-uuid>.<extension>`; the legacy `profiles.avatar_url` column stores this object **path**, not a signed URL or binary data. No new bucket/table/column was needed.
+- Own-avatar permissive policies and an additional restrictive ownership boundary protect SELECT/INSERT/UPDATE/DELETE, including against the pre-existing ADMIN image policy. Other image paths retain their existing policies. Signed URLs are short-lived bearer URLs; never log, share or commit them. See [Supabase Storage access control](https://supabase.com/docs/guides/storage/security/access-control).
+- Profile updates guard identity and CLIENT role against changes; authorization never trusts editable metadata. Only a server-managed ADMIN claim can authorize a role change. The existing administrator was not changed.
+- Weight INSERT, performance SELECT, earned-achievement details SELECT and support-message INSERT are restricted to ownership through `clients.user_id`. Support sender must equal `auth.uid()`.
+- CLIENT workout reads require `is_active = true` and `status = 'published'`. Draft/inactive access remains available to ADMIN; the client repository always filters released/owned content, even when ADMIN browses the client shell.
+- Image replacements use unique filenames and preserve previous files. Failed profile persistence cleans up only the newly uploaded orphan. Future retention cleanup must be explicit, not destructive during profile editing.

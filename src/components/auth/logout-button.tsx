@@ -2,10 +2,15 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
+import { logoutClient } from "@/services/logout-service";
 
 export function LogoutButton() {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
-  return <button className="category-row logout-row" disabled={busy} onClick={async () => { setBusy(true); const { error } = await createSupabaseBrowserClient().auth.signOut(); if (error) console.error("[auth/logout]", error); router.replace("/login"); router.refresh(); }} type="button"><span className="tip-icon">↪</span><strong>{busy ? "Saindo..." : "Sair"}</strong><b>›</b></button>;
+  const [error, setError] = useState<string | null>(null);
+  return <div><button className="category-row logout-row" disabled={busy} onClick={async () => {
+    setBusy(true); setError(null);
+    try { await logoutClient(); router.replace("/login"); router.refresh(); }
+    catch { setError("Não foi possível sair. Tente novamente."); setBusy(false); }
+  }} type="button"><span className="tip-icon" aria-hidden="true">↪</span><strong>{busy ? "Saindo..." : "Sair"}</strong><b aria-hidden="true">›</b></button>{error && <p role="alert">{error}</p>}</div>;
 }

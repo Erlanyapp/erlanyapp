@@ -1,0 +1,4 @@
+import Link from "next/link";
+import { PageHeader } from "@/components/ui";
+import { LogoutButton } from "@/components/auth/logout-button";
+export default function SettingsPage() { return <div><PageHeader title="Configurações" back backHref="/app/mais" /><div className="content-list"><section className="card account-panel"><h2>Conta</h2><Link className="button button-outline full-width" href="/app/perfil/editar">Editar nome e foto</Link></section><section className="card account-panel"><h2>Preferências</h2><p className="muted">Ainda não há preferências personalizáveis disponíveis. Nenhuma configuração é simulada.</p></section><section className="card account-panel"><h2>Sessão</h2><p className="muted">Encerre a sessão neste dispositivo com segurança.</p><LogoutButton /></section></div></div>; }

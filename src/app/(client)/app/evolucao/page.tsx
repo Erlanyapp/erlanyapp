@@ -1,14 +1,38 @@
+import Image from "next/image";
+import type { ProgressWeight, ProgressMeasurement, ProgressPhoto, PerformanceRecord } from "@/types/content";
 import { PageHeader, EmptyState } from "@/components/ui";
 import { MetricCard, ProgressCard, TabNavigation } from "@/components/client/client-components";
+import { WeightForm } from "@/components/client/account-forms";
 import { getContentService } from "@/services/server-content";
 import { ContentError } from "@/components/client/content-states";
-export default async function ProgressPage() {
+
+const tabs = ["Peso", "Medidas", "Fotos", "Desempenho"];
+const formatDate = (date: string) => new Date(`${date}T12:00:00`).toLocaleDateString("pt-BR");
+function NoRecords({ label }: { label: string }) {
+  return <EmptyState title={`Sem registros de ${label.toLowerCase()}`} description="Seus registros aparecerão aqui quando forem liberados." />;
+}
+export default async function ProgressPage({ searchParams }: { searchParams: Promise<{ tab?: string }> }) {
+  const { tab } = await searchParams;
+  const selected = tab && tabs.includes(tab) ? tab : "Peso";
   const service = await getContentService();
-  if (!service) return <div><PageHeader title="Minha evolução" /><ContentError label="sua evolução" /></div>;
+  if (!service) return <><PageHeader title="Minha evolução" /><ContentError label="sua evolução" /></>;
   try {
-    const [weights, measurements, photos, performance] = await Promise.all([service.listProgressWeights(), service.listProgressMeasurements(), service.listProgressPhotos(), service.listPerformanceRecords()]);
-    const latestMeasurement = measurements[0];
-    const measurementEntries = latestMeasurement ? Object.entries(latestMeasurement.measurements).filter(([, value]) => value != null) : [];
-    return <div><PageHeader title="Minha evolução" /><TabNavigation tabs={["Peso", "Medidas", "Fotos", "Desempenho"]} selected="Peso" /><div className="metric-grid"><MetricCard label="Peso atual" value={weights[0] ? `${weights[0].value} kg` : "—"} /><MetricCard label="Registros" value={String(weights.length)} /></div><ProgressCard weights={weights} /><section className="progress-section"><h2>Medidas</h2>{measurementEntries.length ? <div className="content-list">{measurementEntries.map(([key, value]) => <div className="card progress-history-row" key={key}><span>{key}</span><strong>{String(value)}</strong></div>)}</div> : <EmptyState title="Sem medidas registradas" description="Suas principais medidas aparecerão aqui quando houver registros." />}</section><section className="progress-section"><h2>Fotos de evolução</h2>{photos.length ? <div className="photo-grid">{photos.map((photo) => <div className="card photo-card" key={photo.id}>{photo.imageUrl && <span className="photo-preview" style={{ backgroundImage: `url(${photo.imageUrl})` }} aria-hidden="true" />}<strong>{photo.category ?? "Registro"}</strong><small>{new Date(`${photo.recordedAt}T12:00:00`).toLocaleDateString("pt-BR")}</small></div>)}</div> : <EmptyState title="Cada passo conta" description="Suas fotos de evolução aparecerão aqui quando forem registradas." />}</section><section className="progress-section"><h2>Desempenho</h2>{performance.length ? <div className="content-list">{performance.map((record) => <div className="card progress-history-row" key={record.id}><span>{record.metric}<small>{new Date(`${record.recordedAt}T12:00:00`).toLocaleDateString("pt-BR")}</small></span><strong>{record.value == null ? "—" : `${record.value}${record.unit ? ` ${record.unit}` : ""}`}</strong></div>)}</div> : <EmptyState title="Sem desempenho registrado" description="Seu histórico de desempenho aparecerá aqui quando houver registros." />}</section></div>;
-  } catch { return <div><PageHeader title="Minha evolução" /><ContentError label="sua evolução" /></div>; }
+    const panel = selected === "Peso" ? <WeightPanel weights={await service.listProgressWeights()} />
+      : selected === "Medidas" ? <MeasurementsPanel records={await service.listProgressMeasurements()} />
+      : selected === "Fotos" ? <PhotosPanel photos={await service.listProgressPhotos()} />
+      : <PerformancePanel records={await service.listPerformanceRecords()} />;
+    return <div><PageHeader title="Minha evolução" /><TabNavigation tabs={tabs} selected={selected} basePath="/app/evolucao" />{panel}</div>;
+  } catch { return <><PageHeader title="Minha evolução" /><ContentError label="sua evolução" /></>; }
+}
+function WeightPanel({ weights }: { weights: ProgressWeight[] }) {
+  return <><div className="metric-grid"><MetricCard label="Peso atual" value={weights[0] ? `${weights[0].value} kg` : "—"} /><MetricCard label="Registros" value={String(weights.length)} /></div><ProgressCard weights={weights} /><WeightForm /></>;
+}
+function MeasurementsPanel({ records }: { records: ProgressMeasurement[] }) {
+  return records.length ? <div className="content-list">{records.map(record => <article className="card account-panel" key={record.id}><h2>{formatDate(record.recordedAt)}</h2><dl className="account-data">{Object.entries(record.measurements).filter(([, value]) => value != null).map(([key, value]) => <div key={key}><dt>{key}</dt><dd>{String(value)}</dd></div>)}</dl></article>)}</div> : <NoRecords label="Medidas" />;
+}
+function PhotosPanel({ photos }: { photos: ProgressPhoto[] }) {
+  return <>{photos.length ? <div className="photo-grid">{photos.map(photo => <details className="card action-details photo-card" key={photo.id}><summary>{photo.category ?? "Foto"} · {formatDate(photo.recordedAt)}</summary>{photo.imageUrl ? <Image className="progress-photo" src={photo.imageUrl} alt={`Foto de evolução: ${photo.category ?? "registro"}`} width={480} height={640} unoptimized /> : <p>Imagem ainda não disponível.</p>}</details>)}</div> : <NoRecords label="Fotos" />}<p className="muted">O envio de fotos de evolução ainda não está disponível nesta etapa.</p></>;
+}
+function PerformancePanel({ records }: { records: PerformanceRecord[] }) {
+  return records.length ? <div className="content-list">{records.map(record => <article className="card account-panel" key={record.id}><h2>{record.metric}</h2><strong>{record.value == null ? "—" : `${record.value} ${record.unit ?? ""}`}</strong><small>{formatDate(record.recordedAt)}</small></article>)}</div> : <NoRecords label="Desempenho" />;
 }

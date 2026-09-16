@@ -76,6 +76,7 @@ export interface MediaAsset extends ScopedContent {
 }
 
 export interface Tip extends ScopedContent {
+  categoryName?: string | null;
   id: string;
   title: string;
   slug: string;

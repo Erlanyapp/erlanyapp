@@ -1,12 +1,20 @@
 import Link from "next/link";
-import { PageHeader, Card, Avatar } from "@/components/ui";
+import { PageHeader } from "@/components/ui";
 import { LogoutButton } from "@/components/auth/logout-button";
 import { AppIcon, type IconName } from "@/components/icons";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
-const menu: { label: string; icon: IconName }[] = [{ label: "Meus dados", icon: "profile" }, { label: "Meus treinos", icon: "workout" }, { label: "Minhas conquistas", icon: "achievement" }, { label: "Notificações", icon: "bell" }, { label: "Falar com a Erlany", icon: "chat" }, { label: "Central de ajuda", icon: "help" }, { label: "Configurações", icon: "settings" }];
+import { ProfileAvatar } from "@/components/client/profile-avatar";
+import { getClientAccount } from "@/services/server-account";
+const menu: { label: string; icon: IconName; href: string }[] = [
+  { label: "Meus dados", icon: "profile", href: "/app/perfil" },
+  { label: "Meus treinos", icon: "workout", href: "/app/treinos?tab=Meus+treinos" },
+  { label: "Planos", icon: "nutrition", href: "/app/planos" },
+  { label: "Minhas conquistas", icon: "achievement", href: "/app/conquistas" },
+  { label: "Notificações", icon: "bell", href: "/app/notificacoes" },
+  { label: "Falar com a Erlany", icon: "chat", href: "/app/contato" },
+  { label: "Central de ajuda", icon: "help", href: "/app/ajuda" },
+  { label: "Configurações", icon: "settings", href: "/app/configuracoes" },
+];
 export default async function MorePage() {
-  const client = await createSupabaseServerClient();
-  const { data: { user } } = client ? await client.auth.getUser() : { data: { user: null } };
-  const isAdmin = user?.app_metadata?.role === "ADMIN";
-  return <div><PageHeader title="Mais" /><Card className="profile-summary"><Avatar>JS</Avatar><div><strong>Juliana Silva</strong><small>Ver meu perfil</small></div></Card><div className="category-list more-list">{menu.map((item) => <Card className="category-row" key={item.label}><span className="tip-icon"><AppIcon name={item.icon} /></span><strong>{item.label}</strong><AppIcon name="arrow-right" className="row-arrow" size={19} /></Card>)}{isAdmin && <Link className="admin-access-card" href="/admin"><span className="tip-icon"><AppIcon name="settings" /></span><span><strong>Painel Admin</strong><small>Gestão administrativa</small></span><AppIcon name="arrow-right" className="row-arrow" size={19} /></Link>}<LogoutButton /></div></div>;
+  const { account } = await getClientAccount();
+  return <div><PageHeader title="Mais" /><Link className="card profile-summary" href="/app/perfil"><ProfileAvatar account={account} /><div><strong>{account.name}</strong><small>Ver meu perfil</small></div></Link><div className="category-list more-list">{menu.map(item => <Link className="card category-row" href={item.href} key={item.label}><span className="tip-icon"><AppIcon name={item.icon} /></span><strong>{item.label}</strong><AppIcon name="arrow-right" className="row-arrow" size={19} /></Link>)}{account.role === "ADMIN" && <Link className="admin-access-card" href="/admin"><span className="tip-icon"><AppIcon name="settings" /></span><span><strong>Painel Admin</strong><small>Gestão administrativa</small></span><AppIcon name="arrow-right" className="row-arrow" size={19} /></Link>}<LogoutButton /></div></div>;
 }

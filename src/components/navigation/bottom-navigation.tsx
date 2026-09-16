@@ -8,5 +8,9 @@ const items: { href: string; label: string; icon: IconName }[] = [{ href: "/app/
 
 export function BottomNavigation() {
   const pathname = usePathname();
-  return <nav className="bottom-navigation" aria-label="Navegação principal">{items.map((item) => <Link className={pathname.startsWith(item.href) ? "active" : ""} href={item.href} key={item.href}><span className="nav-icon"><AppIcon name={item.icon} /></span><small>{item.label}</small></Link>)}</nav>;
+  const moreRoutes = ["/app/perfil", "/app/conquistas", "/app/notificacoes", "/app/contato", "/app/ajuda", "/app/configuracoes", "/app/planos"];
+  return <nav className="bottom-navigation" aria-label="Navegação principal">{items.map(item => {
+    const active = pathname.startsWith(item.href) || (item.href === "/app/treinos" && pathname.startsWith("/app/exercicios/")) || (item.href === "/app/mais" && moreRoutes.some(route => pathname.startsWith(route)));
+    return <Link className={active ? "active" : ""} aria-current={active ? "page" : undefined} href={item.href} key={item.href}><span className="nav-icon"><AppIcon name={item.icon} /></span><small>{item.label}</small></Link>;
+  })}</nav>;
 }
