@@ -2,12 +2,12 @@ import type { SupabaseClient, User } from "@supabase/supabase-js";
 import type { Account, MembershipPlan } from "@/types/account";
 import { ownAvatarPath } from "@/domain/client-account";
 
-export function createAccountRepository(client: SupabaseClient) {
+export function createAccountRepository(client: SupabaseClient, resolveOwner?: () => Promise<string>) {
   return {
     async account(user: User): Promise<Account> {
       const [profile, owner] = await Promise.all([
         client.from("profiles").select("full_name,avatar_url").eq("id", user.id).single(),
-        client.from("clients").select("id").eq("user_id", user.id).single(),
+        resolveOwner ? resolveOwner().then(id => ({ data: { id }, error: null })) : client.from("clients").select("id").eq("user_id", user.id).single(),
       ]);
       if (profile.error) throw profile.error;
       if (owner.error) throw owner.error;

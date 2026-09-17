@@ -1,8 +1,10 @@
 import { createContentRepository } from "@/repositories/content-repository";
 import { createContentService } from "@/services/content-service";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getClientIdentity, getOwnClientId } from "@/services/server-client-context";
 
-export async function getContentService() {
-  const client = await createSupabaseServerClient();
-  return client ? createContentService(createContentRepository(client)) : null;
-}
+export const getContentService = cache(async () => {
+  const identity = await getClientIdentity();
+  return identity ? createContentService(createContentRepository(identity.client, getOwnClientId)) : null;
+});
+import "server-only";
+import { cache } from "react";

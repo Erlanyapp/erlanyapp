@@ -7,6 +7,7 @@ export function createContentService(repository: ContentRepository) {
     getWorkout: (id: string) => repository.getWorkout(id),
     listWorkoutExercises: (id: string) => repository.listWorkoutExercises(id),
     listVideos: () => repository.listVideos(),
+    getVideo: (id: string) => repository.getVideo(id),
     getExercise: (id: string) => repository.getExercise(id),
     listNutritionPlans: () => repository.listNutritionPlans(),
     listNutritionMeals: (id: string) => repository.listNutritionMeals(id),

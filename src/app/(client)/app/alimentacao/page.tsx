@@ -8,8 +8,8 @@ export default async function FoodPage({ searchParams }: { searchParams: Promise
   const service = await getContentService();
   if (!service) return <><PageHeader title="Alimentação" /><ContentError label="sua alimentação" /></>;
   try {
-    const plans = await service.listNutritionPlans();
-    const [sections, recipes] = await Promise.all([Promise.all(plans.map(async plan => ({ plan, meals: await service.listNutritionMeals(plan.id) }))), service.listRecipes()]);
+    const [plans, recipes] = await Promise.all([service.listNutritionPlans(), service.listRecipes()]);
+    const sections = await Promise.all(plans.map(async plan => ({ plan, meals: await service.listNutritionMeals(plan.id) })));
     const guidance = sections.flatMap(({ plan, meals }) => meals.filter(meal => !!meal.guidance).map(meal => ({ ...meal, planName: plan.name })));
     return <div><PageHeader title="Alimentação" back /><Hero eyebrow="CUIDAR TAMBÉM É NUTRIR" title="Escolhas que fazem bem" description="Seu conteúdo alimentar liberado." icon="◒" className="food-hero" /><TabNavigation tabs={tabs} selected={selected} basePath="/app/alimentacao" /><div className="food-list">
       {selected === "Planos" && (sections.length ? sections.map(({ plan, meals }) => <details className="card action-details food-plan" key={plan.id}><summary>{plan.name}</summary><p>{plan.description}</p>{meals.length ? <div className="meal-list">{meals.map(meal => <article className="card meal-row" key={meal.id}><strong>{meal.name}</strong><p className="preserve-lines">{meal.guidance}</p>{meal.recipeId && recipes.some(recipe => recipe.id === meal.recipeId) && <Link className="button button-outline" href={`/app/alimentacao/receitas/${meal.recipeId}`}>Ver receita</Link>}</article>)}</div> : <p className="muted">As refeições deste plano ainda não foram liberadas.</p>}</details>) : <EmptyState title="Nenhum plano disponível" description="Seu plano alimentar aparecerá aqui quando for liberado." />)}

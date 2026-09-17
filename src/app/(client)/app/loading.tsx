@@ -1,5 +1,5 @@
-import { ContentLoading } from "@/components/client/content-states";
+import { ContentSkeleton } from "@/components/client/route-skeleton";
 
 export default function Loading() {
-  return <div className="content-loading"><ContentLoading label="o conteúdo" /></div>;
+  return <ContentSkeleton />;
 }

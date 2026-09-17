@@ -12,14 +12,16 @@ export default async function ExerciseDetailPage({ params, searchParams }: { par
   const service = await getContentService();
   if (!service) return <div><PageHeader title="Exercício" back backHref={backHref} /><ContentError label="este exercício" /></div>;
   try {
-    const exercise = await service.getExercise(id);
+    const [exercise, workout] = await Promise.all([
+      service.getExercise(id),
+      workoutId && /^[0-9a-f-]{36}$/i.test(workoutId) ? service.getWorkout(workoutId) : Promise.resolve(null),
+    ]);
     if (!exercise) return <div><PageHeader title="Exercício" back backHref={backHref} /><EmptyState title="Exercício não encontrado" description="Este exercício não está disponível para o seu perfil." /></div>;
-    const workout = workoutId && /^[0-9a-f-]{36}$/i.test(workoutId) ? await service.getWorkout(workoutId) : null;
     if (workout) backHref = `/app/treinos/${workout.id}`;
     const items = workout ? await service.listWorkoutExercises(workout.id) : [];
     const item = items.find(item => item.exerciseId === exercise.id);
     const videoId = item?.videoId || exercise.videoId;
-    const video = videoId ? (await service.listVideos()).find(video => video.id === videoId) : null;
+    const video = videoId ? await service.getVideo(videoId) : null;
     return <div className="exercise-reference-page">
       <PageHeader title={exercise.name} back backHref={backHref} />
       <VideoPlayer video={video} />

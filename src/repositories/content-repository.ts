@@ -7,6 +7,7 @@ export interface ContentRepository {
   getWorkout(id: string): Promise<Workout | null>;
   listWorkoutExercises(workoutId: string): Promise<WorkoutExercise[]>;
   listVideos(): Promise<WorkoutVideo[]>;
+  getVideo(id: string): Promise<WorkoutVideo | null>;
   getExercise(id: string): Promise<Exercise | null>;
   listTips(): Promise<Tip[]>;
   listNutritionPlans(): Promise<NutritionPlan[]>;
@@ -42,9 +43,17 @@ const toWorkout = (row: ContentRow): Workout => ({
   createdAt: row.created_at as string, updatedAt: row.updated_at as string,
 });
 
-export function createContentRepository(client: SupabaseClient): ContentRepository {
+const toVideo = (row: ContentRow): WorkoutVideo => ({
+  ...scoped(row), id: row.id as string, provider: row.provider as WorkoutVideo["provider"],
+  providerVideoId: row.provider_video_id as string, title: row.title as string,
+  thumbnailUrl: (row.thumbnail_url as string | null) ?? null, durationSeconds: (row.duration_seconds as number | null) ?? null,
+  type: (row.type as string | null) ?? null, isActive: row.is_active as boolean,
+});
+
+export function createContentRepository(client: SupabaseClient, resolveOwner?: () => Promise<string>): ContentRepository {
   let ownerPromise: Promise<string> | undefined;
   const ownClientId = () => ownerPromise ??= (async () => {
+    if (resolveOwner) return resolveOwner();
     const { data, error } = await client.auth.getUser();
     if (error || !data.user) throw error ?? new Error("Sessão não disponível.");
     const owner = await client.from("clients").select("id").eq("user_id", data.user.id).single();
@@ -52,11 +61,26 @@ export function createContentRepository(client: SupabaseClient): ContentReposito
     return owner.data.id as string;
   })();
   const contentScope = async () => `scope.eq.GLOBAL,and(scope.eq.CLIENT,client_id.eq.${await ownClientId()})`;
-  const signedAssetUrl = async (asset: ContentRow | null | undefined) => {
-    if (!asset?.bucket || !asset.path) return null;
+  // These maps live only in this repository/request, including failures.
+  const signedAssets = new Map<string, Promise<string | null>>();
+  const workouts = new Map<string, Promise<Workout | null>>();
+  const signedAssetUrl = (asset: ContentRow | null | undefined): Promise<string | null> => {
+    if (!asset?.bucket || !asset.path) return Promise.resolve(null);
+    const key = JSON.stringify([asset.bucket, asset.path]);
+    if (!signedAssets.has(key)) signedAssets.set(key, (async () => {
     const { data, error } = await client.storage.from(asset.bucket as string).createSignedUrl(asset.path as string, 3600);
     if (error) throw error;
     return data?.signedUrl ?? null;
+    })());
+    return signedAssets.get(key)!;
+  };
+  const getWorkout = (id: string) => {
+    if (!workouts.has(id)) workouts.set(id, (async () => {
+      const { data, error } = await client.from("workouts").select("*").or(await contentScope()).eq("id", id).eq("is_active", true).eq("status", "published").maybeSingle();
+      if (error) throw error;
+      return data ? toWorkout(data as ContentRow) : null;
+    })());
+    return workouts.get(id)!;
   };
   return {
     async listExercises() {
@@ -69,15 +93,9 @@ export function createContentRepository(client: SupabaseClient): ContentReposito
       if (error) throw error;
       return Promise.all(((data ?? []) as ContentRow[]).map(async (row) => ({ ...toWorkout(row), coverUrl: await signedAssetUrl(row.cover_asset as ContentRow | null) })));
     },
-    async getWorkout(id) {
-      const { data, error } = await client.from("workouts").select("*").or(await contentScope()).eq("id", id).eq("is_active", true).eq("status", "published").maybeSingle();
-      if (error) throw error;
-      return data ? toWorkout(data as ContentRow) : null;
-    },
+    getWorkout,
     async listWorkoutExercises(workoutId) {
-      const parent = await client.from("workouts").select("id").or(await contentScope()).eq("id", workoutId).eq("is_active", true).eq("status", "published").maybeSingle();
-      if (parent.error) throw parent.error;
-      if (!parent.data) return [];
+      if (!await getWorkout(workoutId)) return [];
       const { data, error } = await client.from("workout_exercises").select("*, exercise:exercises(name,thumbnail_url)").eq("workout_id", workoutId).order("position");
       if (error) throw error;
       return ((data ?? []) as ContentRow[]).map((row) => ({
@@ -91,12 +109,12 @@ export function createContentRepository(client: SupabaseClient): ContentReposito
     async listVideos() {
       const { data, error } = await client.from("videos").select("*").or(await contentScope()).eq("is_active", true).order("title");
       if (error) throw error;
-      return ((data ?? []) as ContentRow[]).map((row) => ({
-        ...scoped(row), id: row.id as string, provider: row.provider as WorkoutVideo["provider"],
-        providerVideoId: row.provider_video_id as string, title: row.title as string,
-        thumbnailUrl: (row.thumbnail_url as string | null) ?? null, durationSeconds: (row.duration_seconds as number | null) ?? null,
-        type: (row.type as string | null) ?? null, isActive: row.is_active as boolean,
-      }));
+      return ((data ?? []) as ContentRow[]).map(toVideo);
+    },
+    async getVideo(id) {
+      const { data, error } = await client.from("videos").select("*").or(await contentScope()).eq("id", id).eq("is_active", true).maybeSingle();
+      if (error) throw error;
+      return data ? toVideo(data as ContentRow) : null;
     },
     async getExercise(id) {
       const { data, error } = await client.from("exercises").select("*, category:exercise_categories(name)").or(await contentScope()).eq("id", id).eq("is_active", true).maybeSingle();
