@@ -12,9 +12,10 @@ export default async function WorkoutsPage({ searchParams }: { searchParams: Pro
   const service = await getContentService();
   if (!service) return <><PageHeader title="Treinos" back /><ContentError label="seus treinos" /></>;
   try {
-    const all = await service.listWorkouts();
+    const [global,assigned] = await Promise.all([service.listWorkouts(),service.listAssignedWorkouts()]);
+    const all=[...global,...assigned.filter(item=>!global.some(globalItem=>globalItem.id===item.id))];
     const categories = [...new Set(all.map(item => item.category).filter((item): item is string => !!item))];
-    const workouts = all.filter(item => (tab !== "Meus treinos" || item.scope === "CLIENT")
+    const workouts = all.filter(item => (tab !== "Meus treinos" || assigned.some(assignedItem=>assignedItem.id===item.id)||item.scope === "CLIENT")
       && (!filters.category || item.category === filters.category)
       && (!filters.q || item.name.toLocaleLowerCase("pt-BR").includes(filters.q.trim().toLocaleLowerCase("pt-BR"))));
     const showCategories = tab === "Categorias" && !filters.category && !filters.q && categories.length > 0;

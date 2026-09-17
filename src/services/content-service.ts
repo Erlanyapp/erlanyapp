@@ -4,6 +4,7 @@ export function createContentService(repository: ContentRepository) {
   return {
     listExercises: () => repository.listExercises(),
     listWorkouts: () => repository.listWorkouts(),
+    listAssignedWorkouts: () => repository.listAssignedWorkouts(),
     getWorkout: (id: string) => repository.getWorkout(id),
     listWorkoutExercises: (id: string) => repository.listWorkoutExercises(id),
     listVideos: () => repository.listVideos(),

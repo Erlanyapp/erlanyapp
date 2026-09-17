@@ -4,6 +4,7 @@ import type { Exercise, PerformanceRecord, ProgressMeasurement, ProgressPhoto, P
 export interface ContentRepository {
   listExercises(): Promise<Exercise[]>;
   listWorkouts(): Promise<Workout[]>;
+  listAssignedWorkouts(): Promise<Workout[]>;
   getWorkout(id: string): Promise<Workout | null>;
   listWorkoutExercises(workoutId: string): Promise<WorkoutExercise[]>;
   listVideos(): Promise<WorkoutVideo[]>;
@@ -92,6 +93,13 @@ export function createContentRepository(client: SupabaseClient, resolveOwner?: (
       const { data, error } = await client.from("workouts").select("*, cover_asset:media_assets(bucket,path)").or(await contentScope()).eq("is_active", true).eq("status", "published").order("name");
       if (error) throw error;
       return Promise.all(((data ?? []) as ContentRow[]).map(async (row) => ({ ...toWorkout(row), coverUrl: await signedAssetUrl(row.cover_asset as ContentRow | null) })));
+    },
+    async listAssignedWorkouts() {
+      const owner=await ownClientId();
+      const { data, error } = await client.from("workout_assignments").select("workout:workouts(*,cover_asset:media_assets(bucket,path))").eq("client_id",owner).eq("is_active",true).lte("starts_on",new Date().toISOString().slice(0,10)).or("ends_on.is.null,ends_on.gte."+new Date().toISOString().slice(0,10));
+      if (error) throw error;
+      const rows=(data??[]).map(row=>(row as ContentRow).workout as ContentRow|null).filter((row):row is ContentRow=>!!row&&row.is_active===true&&row.status==="published");
+      return Promise.all(rows.map(async row=>({...toWorkout(row),coverUrl:await signedAssetUrl(row.cover_asset as ContentRow|null)})));
     },
     getWorkout,
     async listWorkoutExercises(workoutId) {
