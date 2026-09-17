@@ -20,17 +20,17 @@ const {createAdminRepository}=await import(await moduleUrl("src/repositories/adm
 const {createAdminService}=await import(await moduleUrl("src/services/admin-service.ts"));
 const id="00000000-0000-0000-0000-000000000001",userId="00000000-0000-0000-0000-000000000002";
 const row={id,user_id:userId,status:"active",created_at:"2026-09-16T00:00:00Z",updated_at:"version",profile:{full_name:"Test fixture",email:"fixture@example.invalid",updated_at:"version",avatar_url:`avatars/${userId}/a.png`},plan:null};
-function infrastructure({error=null,avatar=row.profile.avatar_url}={}) {
+function infrastructure({error=null,rangeError=null,total=41,avatar=row.profile.avatar_url}={}) {
   const calls=[];
-  return {calls,client:{from(table){let writing=false;const q={
-    select(...args){calls.push([table,"select",...args]);return q;},
+  return {calls,client:{from(table){let writing=false,head=false;const q={
+    select(...args){head=!!args[1]?.head;calls.push([table,"select",...args]);return q;},
     update(...args){writing=true;calls.push([table,"update",...args]);return q;},
     eq(...args){calls.push([table,"eq",...args]);return q;},
     gte(...args){calls.push([table,"gte",...args]);return q;},lt(...args){calls.push([table,"lt",...args]);return q;},
     order(...args){calls.push([table,"order",...args]);return q;},or(...args){calls.push([table,"or",...args]);return q;},
     range(...args){calls.push([table,"range",...args]);return q;},
     maybeSingle:async()=>({data:writing?{id}:{...row,profile:{...row.profile,avatar_url:avatar}},error}),
-    then(resolve,reject){return Promise.resolve({data:[{...row,profile:{...row.profile,avatar_url:avatar}}],count:41,error}).then(resolve,reject);}
+    then(resolve,reject){return Promise.resolve({data:head?null:[{...row,profile:{...row.profile,avatar_url:avatar}}],count:!head&&rangeError?null:total,error:error??(!head?rangeError:null)}).then(resolve,reject);}
   };return q;},storage:{from(bucket){return {createSignedUrls:async paths=>{calls.push([bucket,"sign",paths]);return {data:paths.map(path=>({path,signedUrl:"private-signed-fixture"})),error:null};}};}}}};
 }
 test("CRM validates identity, tab and status allowlists",()=>{
@@ -41,7 +41,7 @@ test("CRM validates identity, tab and status allowlists",()=>{
 });
 test("CRM filters use bounded pages, strict dates and inclusive end date",()=>{
   const f=domain.clientListFilters({page:"2",status:"inactive",plan:id,from:"2026-09-01",to:"2026-09-16"});
-  assert.equal(f.pageSize,20);assert.equal(f.page,2);assert.equal(f.until,"2026-09-17T00:00:00.000Z");assert.equal(f.planId,id);
+  assert.equal(f.pageSize,20);assert.equal(f.page,2);assert.equal(f.until,"2026-09-17T03:00:00.000Z");assert.equal(f.planId,id);
   assert.equal(domain.clientListFilters({page:"-2",status:"ADMIN"}).page,1);
   assert.equal(domain.clientListFilters({page:"5001"}).page,5001);
   for(const params of [{from:"2026-02-30"},{from:"2026-09-17",to:"2026-09-16"},{plan:"bad"},{page:"100001"}])assert.throws(()=>domain.clientListFilters(params));
@@ -59,6 +59,17 @@ test("repository pagination is inclusive, stable and performed in database",asyn
 });
 test("query failure is not presented as an empty client list",async()=>{
   const i=infrastructure({error:new Error("Query denied")});await assert.rejects(createAdminRepository(i.client).listClients(domain.clientListFilters({})),/Query denied/);
+});
+test("out-of-range pages recount identical filters without masking other failures",async()=>{
+  const params=domain.clientListFilters({page:"2",q:"Fixture",status:"active"});
+  const i=infrastructure({rangeError:{code:"PGRST103"},total:3});
+  const result=await createAdminRepository(i.client).listClients(params);
+  assert.equal(result.total,3);assert.equal(result.clients.length,0);
+  assert.equal(i.calls.filter(c=>c[1]==="or").length,2);
+  assert.equal(i.calls.filter(c=>c[1]==="eq"&&c[2]==="status").length,2);
+  assert.ok(i.calls.some(c=>c[1]==="select"&&c[3].head));
+  const inconsistent=infrastructure({rangeError:{code:"PGRST103"},total:41});
+  await assert.rejects(createAdminRepository(inconsistent.client).listClients(params));
 });
 test("ADMIN signing still validates avatar path against actual client owner",async()=>{
   const i=infrastructure({avatar:"avatars/foreign/a.png"});const result=await createAdminRepository(i.client).listClients(domain.clientListFilters({}));
@@ -96,7 +107,8 @@ test("server guard allows only verified Auth app_metadata ADMIN",async()=>{
 });
 test("every CRM mutation authenticates outside its error-catching block",async()=>{
   const actions=await source("src/app/(admin)/admin/clientes/actions.ts");
-  assert.equal((actions.match(/const \{client\}=await requireAdmin\(\);\s*try/g)??[]).length,2);
+  assert.equal((actions.match(/const \{client\}=await requireAdmin\(\);/g)??[]).length,3);
+  assert.match(actions,/createAdminClient[\s\S]*?requireAdmin\(\);\s*let clientId:string;\s*try/);
   for(const file of ["client-detail.tsx","client-profile-form.tsx","client-table.tsx","client-filters.tsx"]){const s=await source(`src/components/admin/${file}`);assert.doesNotMatch(s,/\.from\(|service_role|SUPABASE_SERVICE_ROLE/);}
 });
 test("error recovery clears filters with a document navigation to reset the boundary",async()=>{

@@ -33,3 +33,24 @@ export interface AdminClientDetail extends AdminClient {
   currentWorkout: string | null;
   currentNutritionPlan: string | null;
 }
+
+export interface AdminClientRecord {
+  id: string;
+  title: string;
+  description: string | null;
+  date: string | null;
+  fields: Array<{label: string; value: string}>;
+  imageUrl?: string | null;
+  imageError?: boolean;
+}
+export interface AdminClientRecordGroup {
+  title: string;
+  empty: string;
+  records: AdminClientRecord[];
+  total: number;
+}
+export interface AdminClientRecords {
+  groups: AdminClientRecordGroup[];
+  page: number;
+  pageSize: number;
+}

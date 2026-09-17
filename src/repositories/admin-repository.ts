@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { AdminClient,AdminClientDetail,AdminMetrics } from "@/types/admin";
 import { ownAvatarPath } from "@/domain/client-account";
 import type { clientListFilters } from "@/domain/admin-client";
+import { readAdminPage } from "./admin-page";
 type Row=Record<string,unknown>;
 const selectClient="id,user_id,status,plan_id,last_access_at,created_at,updated_at,profile:profiles!clients_profile_fkey!inner(full_name,email,avatar_url,updated_at),plan:plans!clients_plan_id_fkey(name)";
 const toClient=(row:Row):AdminClient=>{
@@ -24,6 +25,18 @@ export function createAdminRepository(client:SupabaseClient) {
     return items.map(x=>({...x,avatarUrl:urls.get(x.avatarPath??"")||null,avatarError:!!x.avatarPath&&!urls.get(x.avatarPath)}));
   };
   return {
+    async createClient(input:{name:string;email:string;password:string;confirmed:boolean}) {
+      const {data,error}=await client.functions.invoke("admin-create-client",{body:input});
+      if(error) {
+        if(error.context instanceof Response) {
+          const result=await error.context.json().catch(()=>null);
+          if(typeof result?.error==="string")throw new Error(result.error);
+        }
+        throw new Error("Não foi possível criar o cliente. Verifique a sessão e a conexão antes de tentar novamente.");
+      }
+      if(typeof data?.clientId!=="string")throw new Error("A criação não retornou uma ficha válida. Confira a listagem antes de repetir.");
+      return data.clientId as string;
+    },
     async getAdministrator(userId:string,email:string|undefined) {
       const {data,error}=await client.from("profiles").select("full_name,avatar_url").eq("id",userId).single();
       if(error)throw error;
@@ -41,16 +54,18 @@ export function createAdminRepository(client:SupabaseClient) {
       if(error)throw error;return (data??[]) as {id:string;name:string}[];
     },
     async listClients(f:ReturnType<typeof clientListFilters>) {
-      let q=client.from("clients").select(selectClient,{count:"exact"}).order("created_at",{ascending:false}).order("id",{ascending:false});
+      const query=(head=false)=>{
+      let q=client.from("clients").select(selectClient,{count:"exact",head}).order("created_at",{ascending:false}).order("id",{ascending:false});
       if(f.status!=="all")q=q.eq("status",f.status);
       if(f.planId)q=q.eq("plan_id",f.planId);
       if(f.fromDate)q=q.gte("created_at",f.fromDate);
       if(f.until)q=q.lt("created_at",f.until);
       if(f.search)q=q.or(`full_name.ilike.%${f.search}%,email.ilike.%${f.search}%`,{referencedTable:"profile"});
+      return q;
+      };
       const start=(f.page-1)*f.pageSize;
-      const {data,error,count:total}=await q.range(start,start+f.pageSize-1);
-      if(error)throw error;
-      return {clients:await signAvatars(((data??[]) as Row[]).map(toClient)),total:total??0,page:f.page,pageSize:f.pageSize};
+      const {rows,total}=await readAdminPage(()=>query().range(start,start+f.pageSize-1),()=>query(true),start);
+      return {clients:await signAvatars((rows as Row[]).map(toClient)),total,page:f.page,pageSize:f.pageSize};
     },
     async getClient(id:string):Promise<AdminClientDetail|null> {
       const {data,error}=await client.from("clients").select(selectClient).eq("id",id).maybeSingle();
