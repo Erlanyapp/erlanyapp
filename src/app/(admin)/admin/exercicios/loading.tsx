@@ -1,0 +1,1 @@
+export default function LoadingExercises(){return <div className="crm-skeleton" role="status" aria-label="Carregando exercícios"><div className="crm-skeleton-title"/><div className="crm-skeleton-filters"/>{Array.from({length:6},(_,i)=><div className="crm-skeleton-row" key={i}/>)}</div>}

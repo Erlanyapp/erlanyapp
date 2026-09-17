@@ -1,0 +1,2 @@
+import type { ContentScope } from "./content";
+export interface AdminExercise {id:string;name:string;categoryId:string|null;category:string|null;description:string|null;instructions:string|null;muscles:string[];equipment:string|null;level:string|null;scope:ContentScope;clientId:string|null;videoId:string|null;thumbnailAssetId:string|null;thumbnailUrl:string|null;isActive:boolean;createdAt:string;updatedAt:string;}
