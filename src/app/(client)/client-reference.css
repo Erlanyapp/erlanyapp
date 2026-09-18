@@ -138,6 +138,10 @@
 .client-viewport .progress-card { padding: 20px 16px; }
 .client-viewport .exercise-name { margin: 16px 0 8px; color: #38243d; font: 700 20px/1.3 var(--client-font-body); }
 .client-viewport .exercise-description { margin: 0 0 16px; font: 400 14px/1.5 var(--client-font-body); color: #6c5971; }
+.client-viewport .exercise-media { display: grid; gap: 12px; margin: 0 0 16px; }
+.client-viewport .exercise-cover { display: block; width: 100%; height: auto; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 16px; background: #f0e6f0; box-shadow: var(--client-shadow-soft); }
+.client-viewport .exercise-media .video-player { margin: 0; border-radius: 16px; box-shadow: var(--client-shadow-soft); }
+.client-viewport .exercise-media-empty { display: grid; place-items: center; min-height: 136px; margin: 0 0 16px; padding: 18px; border: 1px dashed #ddcce0; border-radius: 16px; color: #8a778e; font-size: 13px; line-height: 1.45; text-align: center; }
 .client-viewport .exercise-prescription { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 10px; margin: 0 0 18px; }
 .client-viewport .exercise-prescription>div { min-width: 0; padding: 16px 6px; text-align: center; border-radius: 12px; background: #f0e6f0; }
 .client-viewport .exercise-prescription dt { font-size: 12px; color: #86718b; }

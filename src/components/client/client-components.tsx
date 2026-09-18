@@ -24,7 +24,7 @@ export function WorkoutCard({ workout }: { workout: Workout }) {
 
 export function VideoPlayer({ video }: { video?: WorkoutVideo | null }) {
   const source = video && videoProviders[video.provider]?.getEmbedSource(video);
-  return source ? <div className="video-player"><iframe title={video!.title} src={source} allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen /></div> : <p className="muted">Vídeo demonstrativo ainda não disponível.</p>;
+  return source ? <div className="video-player"><iframe title="Vídeo demonstrativo do exercício" src={source} allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" referrerPolicy="strict-origin-when-cross-origin" allowFullScreen /></div> : null;
 }
 
 export function MetricCard({ label, value }: { label: string; value: string }) { return <Card className="metric-card"><strong>{value}</strong><small>{label}</small></Card>; }

@@ -35,12 +35,12 @@ const scoped = (row: ContentRow) => ({
   clientId: (row.client_id as string | null) ?? null,
 });
 
-const toExercise = (row: ContentRow): Exercise => ({
+const toExercise = (row: ContentRow, thumbnailUrl: string | null = null): Exercise => ({
   ...scoped(row), id: row.id as string, name: row.name as string, slug: row.slug as string,
   description: (row.description as string | null) ?? null, instructions: (row.instructions as string | null) ?? null,
   muscles: (row.muscles as string[]) ?? [], difficulty: (row.level as string | null) ?? null,
   equipment: (row.equipment as string | null) ?? null, category: ((row.category as ContentRow | null)?.name as string | null) ?? null,
-  thumbnailUrl: (row.thumbnail_url as string | null) ?? null, videoId: (row.video_id as string | null) ?? null,
+  thumbnailUrl, videoId: (row.video_id as string | null) ?? null,
   isActive: row.is_active as boolean, createdAt: row.created_at as string, updatedAt: row.updated_at as string,
 });
 
@@ -93,9 +93,12 @@ export function createContentRepository(client: SupabaseClient, resolveOwner?: (
   };
   return {
     async listExercises() {
-      const { data, error } = await client.from("exercises").select("*, category:exercise_categories(name)").or(await contentScope()).eq("is_active", true).order("name");
+      const { data, error } = await client.from("exercises").select("*, category:exercise_categories(name), thumbnail_asset:media_assets(bucket,path)").or(await contentScope()).eq("is_active", true).order("name");
       if (error) throw error;
-      return ((data ?? []) as ContentRow[]).map(toExercise);
+      return Promise.all(((data ?? []) as ContentRow[]).map(async (row) => toExercise(
+        row,
+        await signedAssetUrl(row.thumbnail_asset as ContentRow | null),
+      )));
     },
     async listWorkouts() {
       const { data, error } = await client.from("workouts").select("*, cover_asset:media_assets(bucket,path)").or(await contentScope()).eq("is_active", true).eq("status", "published").order("name");
@@ -114,15 +117,19 @@ export function createContentRepository(client: SupabaseClient, resolveOwner?: (
     getWorkout,
     async listWorkoutExercises(workoutId) {
       if (!await getWorkout(workoutId)) return [];
-      const { data, error } = await client.from("workout_exercises").select("*, exercise:exercises(name,thumbnail_url)").eq("workout_id", workoutId).order("position");
+      const { data, error } = await client.from("workout_exercises").select("*, exercise:exercises(name,thumbnail_asset:media_assets(bucket,path))").eq("workout_id", workoutId).order("position");
       if (error) throw error;
-      return ((data ?? []) as ContentRow[]).map((row) => ({
+      return Promise.all(((data ?? []) as ContentRow[]).map(async (row) => {
+        const exercise = row.exercise as ContentRow | null;
+        return {
         id: row.id as string, workoutId: row.workout_id as string, exerciseId: row.exercise_id as string,
         videoId: (row.video_id as string | null) ?? null, position: row.position as number,
         sets: (row.sets as number | null) ?? null, repetitions: (row.repetitions as string | null) ?? null,
         load: (row.load as string | null) ?? null, restSeconds: (row.rest_seconds as number | null) ?? null,
         durationSeconds: (row.duration_seconds as number | null) ?? null, notes: (row.notes as string | null) ?? null,
-        exerciseName: ((row.exercise as ContentRow | null)?.name as string | undefined), exerciseThumbnailUrl: ((row.exercise as ContentRow | null)?.thumbnail_url as string | null) ?? null,
+        exerciseName: exercise?.name as string | undefined,
+        exerciseThumbnailUrl: await signedAssetUrl(exercise?.thumbnail_asset as ContentRow | null),
+      };
       }));
     },
     async listVideos() {
@@ -136,9 +143,14 @@ export function createContentRepository(client: SupabaseClient, resolveOwner?: (
       return data ? toVideo(data as ContentRow) : null;
     },
     async getExercise(id) {
-      const { data, error } = await client.from("exercises").select("*, category:exercise_categories(name)").or(await contentScope()).eq("id", id).eq("is_active", true).maybeSingle();
+      const { data, error } = await client.from("exercises").select("*, category:exercise_categories(name), thumbnail_asset:media_assets(bucket,path)").or(await contentScope()).eq("id", id).eq("is_active", true).maybeSingle();
       if (error) throw error;
-      return data ? toExercise(data as ContentRow) : null;
+      return data
+        ? toExercise(
+            data as ContentRow,
+            await signedAssetUrl((data as ContentRow).thumbnail_asset as ContentRow | null),
+          )
+        : null;
     },
     async listNutritionPlans() {
       const { data, error } = await client.from("nutrition_plans").select("*").or(await contentScope()).order("name");

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { AppIcon } from "@/components/icons";
 import { Card, EmptyState, PageHeader } from "@/components/ui";
 import { VideoPlayer } from "@/components/client/client-components";
@@ -24,7 +25,10 @@ export default async function ExerciseDetailPage({ params, searchParams }: { par
     const video = videoId ? await service.getVideo(videoId) : null;
     return <div className="exercise-reference-page">
       <PageHeader title={exercise.name} back backHref={backHref} />
-      <VideoPlayer video={video} />
+      {exercise.thumbnailUrl || video ? <section className="exercise-media" aria-label="Mídia do exercício">
+        {exercise.thumbnailUrl ? <Image className="exercise-cover" src={exercise.thumbnailUrl} alt={`Capa do exercício ${exercise.name}`} width={1200} height={675} unoptimized /> : null}
+        <VideoPlayer video={video} />
+      </section> : <div className="exercise-media-empty">Nenhuma mídia demonstrativa disponível para este exercício.</div>}
       <h2 className="exercise-name">{exercise.name}</h2>
       <p className="exercise-description">{exercise.description ?? "Prepare-se para evoluir com segurança."}</p>
       {item && <dl className="exercise-prescription">

@@ -8,6 +8,7 @@ import ts from "typescript";
 
 const require = createRequire(import.meta.url);
 const root = path.resolve(import.meta.dirname, "..");
+const source = (relative) => readFile(path.join(root, relative), "utf8");
 // Execute the actual TypeScript modules, not duplicate implementations of their rules.
 async function moduleUrl(relative) {
   const source = await readFile(path.join(root, relative), "utf8");
@@ -87,8 +88,21 @@ test("weight and support writes cannot accept a forged client/sender from form f
   form.set("message"," ");await assert.rejects(service.contact(account,form));
 });
 test("video adapter embeds only valid provider IDs, never internal UUIDs or URLs",()=>{
-  assert.equal(youtubeProvider.getEmbedSource({providerVideoId:"dQw4w9WgXcQ"}),"https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ");
+  assert.equal(youtubeProvider.getEmbedSource({providerVideoId:"dQw4w9WgXcQ"}),"https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ?rel=0&modestbranding=1&playsinline=1&iv_load_policy=3");
   for(const id of ["", "https://evil.test", "00000000-0000-0000-0000-000000000000", "../bad"]) assert.equal(youtubeProvider.getEmbedSource({providerVideoId:id}),"");
+});
+test("exercise media follows the private thumbnail asset relation and renders no duplicate provider metadata", async () => {
+  const repository = await source("src/repositories/content-repository.ts");
+  const detail = await source("src/app/(client)/app/exercicios/[id]/page.tsx");
+  const player = await source("src/components/client/client-components.tsx");
+  assert.match(repository, /thumbnail_asset:media_assets\(bucket,path\)/);
+  assert.match(repository, /createSignedUrl\(asset\.path as string, 3600\)/);
+  assert.match(repository, /exercise:exercises\(name,thumbnail_asset:media_assets\(bucket,path\)\)/);
+  assert.match(repository, /exerciseThumbnailUrl: await signedAssetUrl/);
+  assert.match(detail, /exercise\.thumbnailUrl \? <Image/);
+  assert.match(detail, /exercise-media-empty/);
+  assert.match(player, /title="Vídeo demonstrativo do exercício"/);
+  assert.doesNotMatch(player, /video!\.title/);
 });
 function infrastructure(rows, storageError = null) {
   const calls=[];let authCalls=0;let signCalls=0;

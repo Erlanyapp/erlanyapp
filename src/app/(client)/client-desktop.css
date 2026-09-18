@@ -141,7 +141,8 @@
   .client-viewport .account-panel>.button { width: auto; min-width: 200px; }
   .client-viewport .exercise-reference-page { display: grid; grid-template-columns: minmax(0,1.7fr) minmax(240px,1fr); column-gap: 28px; align-items: start; }
   .client-viewport .exercise-reference-page>.page-header { grid-column: 1/-1; }
-  .client-viewport .exercise-reference-page>.video-player { grid-column: 1; grid-row: 2/7; }
+  .client-viewport .exercise-reference-page>.exercise-media,
+  .client-viewport .exercise-reference-page>.exercise-media-empty { grid-column: 1; grid-row: 2/7; }
   .client-viewport .exercise-reference-page>:is(.exercise-name,.exercise-description,.exercise-prescription,.exercise-instructions,.detail-meta,.exercise-cta) { grid-column: 2; min-width: 0; }
   .client-viewport .exercise-name { margin-top: 0; font-size: 24px; }
   .client-viewport .desktop-sidebar :is(a,button),.client-viewport .desktop-header a { scroll-margin-top: 100px; }
