@@ -26,7 +26,7 @@ async function moduleUrl(relative) {
 const domain = await import(await moduleUrl("src/domain/client-account.ts"));
 const { createAccountService } = await import(await moduleUrl("src/services/account-service.ts"));
 const { youtubeProvider } = await import(await moduleUrl("src/lib/content/video-provider.ts"));
-const { createContentRepository, isScheduledWorkout } = await import(await moduleUrl("src/repositories/content-repository.ts"));
+const { createContentRepository, isScheduledWorkout, workoutScheduleDays } = await import(await moduleUrl("src/repositories/content-repository.ts"));
 const { createAccountRepository } = await import(await moduleUrl("src/repositories/account-repository.ts"));
 const account = { id: "owner-a", clientId: "client-a", name: "Cliente", email: "", avatarPath: null, avatarUrl: null, role: "CLIENT" };
 
@@ -150,12 +150,43 @@ test("each client schedule is evaluated independently: A Mon/Wed/Fri, B Tue/Thu,
   assert.equal(isScheduledWorkout(b, 4), false);
   for (let weekday = 0; weekday < 7; weekday += 1) assert.equal(isScheduledWorkout(c, weekday), true);
 });
+test("weekly assignment schedule preserves Monday-to-Sunday ordering, supports multiple workouts and excludes REST days", () => {
+  const clientA = [{ weekday: 4, schedule_kind: "WORKOUT" }, { weekday: 0, schedule_kind: "WORKOUT" }, { weekday: 2, schedule_kind: "WORKOUT" }];
+  const clientB = [{ weekday: 3, schedule_kind: "WORKOUT" }, { weekday: 1, schedule_kind: "WORKOUT" }];
+  const clientC = Array.from({ length: 7 }, (_, weekday) => ({ weekday, schedule_kind: "WORKOUT" }));
+  assert.deepEqual(workoutScheduleDays(clientA), [0, 2, 4]);
+  assert.deepEqual(workoutScheduleDays(clientB), [1, 3]);
+  assert.deepEqual(workoutScheduleDays(clientC), [0, 1, 2, 3, 4, 5, 6]);
+  assert.deepEqual(workoutScheduleDays([{ weekday: 0, schedule_kind: "REST" }]), []);
+});
+test("weekly client programme reads valid assignments once and groups them by their assignment schedule", async () => {
+  const infra = infrastructure({
+    clients: [{ id: "client-a" }],
+    workout_assignments: [
+      { id: "assignment-a", workout: { id: "workout-a", name: "A", slug: "a", scope: "CLIENT", is_active: true, created_at: "2026-09-18", updated_at: "2026-09-18" }, schedule: [{ weekday: 0, schedule_kind: "WORKOUT" }, { weekday: 2, schedule_kind: "WORKOUT" }] },
+      { id: "assignment-b", workout: { id: "workout-b", name: "B", slug: "b", scope: "CLIENT", is_active: true, created_at: "2026-09-18", updated_at: "2026-09-18" }, schedule: [{ weekday: 0, schedule_kind: "WORKOUT" }] },
+      { id: "assignment-rest", workout: { id: "workout-rest", name: "Descanso", slug: "rest", scope: "CLIENT", is_active: true, created_at: "2026-09-18", updated_at: "2026-09-18" }, schedule: [{ weekday: 6, schedule_kind: "REST" }] },
+    ],
+  });
+  const schedule = await createContentRepository(infra.client).listAssignedWorkoutSchedule();
+  assert.deepEqual(schedule.map((item) => [item.assignmentId, item.scheduledWeekdays]), [["assignment-a", [0, 2]], ["assignment-b", [0]]]);
+  assert.equal(schedule.filter((item) => item.scheduledWeekdays.includes(0)).length, 2);
+  assert.ok(infra.calls.some((call) => call[0] === "workout_assignments" && call[1] === "lte" && call[2] === "starts_on"));
+});
 test("home uses the scheduled assignment source while workout detail still resolves through the protected workout and exercise reads", async () => {
   const home = await source("src/app/(client)/app/inicio/page.tsx");
   const detail = await source("src/app/(client)/app/treinos/[id]/page.tsx");
   assert.match(home, /service\.listAssignedWorkouts\(\)/);
   assert.match(detail, /service\.getWorkout\(id\)/);
   assert.match(detail, /service\.listWorkoutExercises\(id\)/);
+});
+test("workout list renders assignment days in weekly order and highlights only the Sao Paulo current day", async () => {
+  const page = await source("src/app/(client)/app/treinos/page.tsx");
+  assert.match(page, /service\.listAssignedWorkoutSchedule\(\)/);
+  assert.match(page, /"SEGUNDA-FEIRA".*"DOMINGO"/s);
+  assert.match(page, /workout\.scheduledWeekdays\.includes\(weekday\)/);
+  assert.match(page, /group\.weekday === currentWeekday/);
+  assert.match(page, /key=\{workout\.assignmentId\}/);
 });
 test("assigned draft workout RLS is owner-bound, scheduled, includes exercises, and evaluates civil dates in Sao Paulo", async () => {
   const migration = await source("supabase/migrations/20260918182740_require_assignment_for_private_workouts.sql");
@@ -170,6 +201,16 @@ test("assigned draft workout RLS is owner-bound, scheduled, includes exercises, 
   assert.match(migration, /assignment\.is_active/);
   assert.match(migration, /assignment\.starts_on <=/);
   assert.match(migration, /assignment\.ends_on is null or assignment\.ends_on >=/);
+});
+test("weekly schedule visibility remains owner-bound, in-period and requires a WORKOUT schedule", async () => {
+  const migration = await source("supabase/migrations/20260918184838_allow_assigned_workout_schedule_visibility.sql");
+  assert.match(migration, /assignment\.workout_id = workouts\.id/);
+  assert.match(migration, /client\.user_id = \(select auth\.uid\(\)\)/);
+  assert.match(migration, /assignment\.is_active/);
+  assert.match(migration, /starts_on <=/);
+  assert.match(migration, /schedule\.schedule_kind = 'WORKOUT'/);
+  assert.match(migration, /workout\.id = workout_exercises\.workout_id/);
+  assert.doesNotMatch(migration, /schedule\.weekday = extract\(isodow/);
 });
 test("private image signing failure is an error, not a misleading empty success",async()=>{
   const infra=infrastructure({clients:[{id:"client-a"}],progress_photos:[{id:"photo-a",asset:{bucket:"images",path:"progress/client-a/a.jpg"}}]},new Error("Storage denied"));

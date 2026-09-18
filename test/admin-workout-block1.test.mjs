@@ -97,6 +97,15 @@ test("assignment create, edit, activation and cancellation use the same assignme
   assert.match(actions, /updateAssignment\(workoutId:\s*string,\s*id:\s*string,\s*form:\s*FormData\).*adminWorkoutService\.updateAssignment\(id, form\).*toggleAssignment\(id, form\.get\("isActive"\) === "on"\)/s);
 });
 
+test("admin workout list derives its Monday-to-Sunday groups from assignment schedules", async () => {
+  const repository = await source("src/repositories/admin-workout-repository.ts");
+  const page = await source("src/app/(admin)/admin/treinos/page.tsx");
+  assert.match(repository, /workout_assignments\(schedule:workout_assignment_schedule\(weekday,schedule_kind\)\)/);
+  assert.match(repository, /item\.schedule_kind===\"WORKOUT\"/);
+  assert.match(page, /"SEGUNDA-FEIRA".*"DOMINGO"/s);
+  assert.match(page, /workout\.scheduledWeekdays\.includes\(weekday\)/);
+});
+
 test("workout creation maps domain camelCase fields to database columns and keeps form values on errors", async () => {
   const repository = await source("src/repositories/admin-workout-repository.ts");
   const actions = await source("src/app/(admin)/admin/treinos/actions.ts");
@@ -148,7 +157,7 @@ test("admin list delegates search, status, scope, count and database pagination 
   assert.match(repository, /\.range\(start,start\+size-1\)/);
   assert.match(repository, /\{count:"exact"\}/);
   assert.match(page, /Nenhum treino encontrado/);
-  assert.match(page, /data\.page\*data\.pageSize<data\.total/);
+  assert.match(page, /data\.page \* data\.pageSize < data\.total/);
   assert.match(loading, /aria-busy="true"/);
   assert.match(error, /Tentar novamente/);
 });
@@ -176,7 +185,7 @@ test("client assigned-workout query is scoped to the authenticated owner and act
   assert.match(repository, /schedule:workout_assignment_schedule\(weekday,schedule_kind\)/);
   assert.match(repository, /ends_on\.is\.null,ends_on\.gte/);
   assert.match(repository, /const today = saoPauloDate\(\)/);
-  assert.match(repository, /row\.is_active === true/);
+  assert.match(repository, /workout\.is_active !== true/);
   assert.doesNotMatch(repository, /row\.status === "published"/);
   assert.doesNotMatch(repository, /service_role/);
 });

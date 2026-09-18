@@ -101,6 +101,9 @@
   .client-viewport .home-body .quote-card { min-height: 132px; padding: 28px 50px; }
   .client-viewport .quote-card p { font-size: 19px; }
   .client-viewport .workout-category-list,.client-viewport .workout-list,.client-viewport .tip-list,.client-viewport .food-list,.client-viewport .content-list { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(100%,300px),1fr)); gap: 20px; align-items: start; }
+  .client-viewport .workout-week-list { gap:28px; }
+  .client-viewport .workout-day-group { gap:14px; }
+  .client-viewport .workout-day-group>h2 { font-size:14px; }
   .client-viewport :is(.workout-list,.tip-list,.food-list,.content-list)>.empty-state { grid-column: 1 / -1; }
   .client-viewport .workout-feature { min-height: 240px; padding: 26px; }
   .client-viewport .workout-feature .workout-copy { max-width: 75%; }

@@ -1,10 +1,11 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { Exercise, PerformanceRecord, ProgressMeasurement, ProgressPhoto, ProgressWeight, Recipe, Tip, Workout, WorkoutExercise, WorkoutVideo, NutritionMeal, NutritionPlan } from "@/types/content";
+import type { AssignedWorkout, Exercise, PerformanceRecord, ProgressMeasurement, ProgressPhoto, ProgressWeight, Recipe, Tip, Workout, WorkoutExercise, WorkoutVideo, NutritionMeal, NutritionPlan } from "@/types/content";
 
 export interface ContentRepository {
   listExercises(): Promise<Exercise[]>;
   listWorkouts(): Promise<Workout[]>;
   listAssignedWorkouts(): Promise<Workout[]>;
+  listAssignedWorkoutSchedule(): Promise<AssignedWorkout[]>;
   getWorkout(id: string): Promise<Workout | null>;
   listWorkoutExercises(workoutId: string): Promise<WorkoutExercise[]>;
   listVideos(): Promise<WorkoutVideo[]>;
@@ -21,7 +22,7 @@ export interface ContentRepository {
 }
 
 type ContentRow = Record<string, unknown>;
-type AssignmentScheduleRow = Pick<ContentRow, "weekday" | "schedule_kind">;
+type AssignmentScheduleRow = { weekday: number; schedule_kind: string };
 
 const saoPauloDate = () => {
   const parts = new Intl.DateTimeFormat("en-US", {
@@ -34,10 +35,16 @@ const saoPauloDate = () => {
 // Assignment schedules use Monday = 0 through Sunday = 6. Derive the weekday
 // from the already time-zone-aware calendar date instead of the server's UTC
 // clock, which can otherwise select the wrong schedule around midnight.
-const saoPauloWeekday = () => (new Date(`${saoPauloDate()}T12:00:00Z`).getUTCDay() + 6) % 7;
+export const saoPauloWeekday = () => (new Date(`${saoPauloDate()}T12:00:00Z`).getUTCDay() + 6) % 7;
 
 export const isScheduledWorkout = (schedule: AssignmentScheduleRow[] | null | undefined, weekday: number) =>
   (schedule ?? []).some((item) => item.weekday === weekday && item.schedule_kind === "WORKOUT");
+
+export const workoutScheduleDays = (schedule: AssignmentScheduleRow[] | null | undefined) =>
+  [...new Set((schedule ?? [])
+    .filter((item) => item.schedule_kind === "WORKOUT" && Number.isInteger(item.weekday) && item.weekday >= 0 && item.weekday <= 6)
+    .map((item) => item.weekday))]
+    .sort((left, right) => left - right);
 
 const scoped = (row: ContentRow) => ({
   scope: row.scope as Exercise["scope"],
@@ -114,10 +121,9 @@ export function createContentRepository(client: SupabaseClient, resolveOwner?: (
       if (error) throw error;
       return Promise.all(((data ?? []) as ContentRow[]).map(async (row) => ({ ...toWorkout(row), coverUrl: await signedAssetUrl(row.cover_asset as ContentRow | null) })));
     },
-    async listAssignedWorkouts() {
+    async listAssignedWorkoutSchedule() {
       const owner = await ownClientId();
       const today = saoPauloDate();
-      const weekday = saoPauloWeekday();
       const { data, error } = await client
         .from("workout_assignments")
         .select("workout:workouts(*,cover_asset:media_assets(bucket,path)),schedule:workout_assignment_schedule(weekday,schedule_kind)")
@@ -130,12 +136,26 @@ export function createContentRepository(client: SupabaseClient, resolveOwner?: (
         .order("id", { ascending: false });
       if (error) throw error;
       const rows = (data ?? []) as ContentRow[];
-      const scheduled = rows
-        .filter((assignment) => isScheduledWorkout(assignment.schedule as AssignmentScheduleRow[] | null, weekday))
-        .map((assignment) => assignment.workout as ContentRow | null)
-        .filter((row): row is ContentRow => !!row && row.is_active === true);
-      const unique = [...new Map(scheduled.map((row) => [String(row.id), row])).values()];
-      return Promise.all(unique.map(async (row) => ({ ...toWorkout(row), coverUrl: await signedAssetUrl(row.cover_asset as ContentRow | null) })));
+      return Promise.all(rows.flatMap((assignment) => {
+        const workout = assignment.workout as ContentRow | null;
+        const scheduledWeekdays = workoutScheduleDays(assignment.schedule as AssignmentScheduleRow[] | null);
+        if (!workout || workout.is_active !== true || !scheduledWeekdays.length) return [];
+        return [{
+          ...toWorkout(workout),
+          assignmentId: String(assignment.id),
+          scheduledWeekdays,
+          coverUrl: signedAssetUrl(workout.cover_asset as ContentRow | null),
+        }];
+      }).map(async (assigned) => ({ ...assigned, coverUrl: await assigned.coverUrl })));
+    },
+    async listAssignedWorkouts() {
+      const weekday = saoPauloWeekday();
+      const scheduled = await this.listAssignedWorkoutSchedule();
+      const unique = [...new Map(scheduled
+        .filter((workout) => workout.scheduledWeekdays.includes(weekday))
+        .map((workout) => [workout.id, workout]))
+        .values()];
+      return unique;
     },
     getWorkout,
     async listWorkoutExercises(workoutId) {

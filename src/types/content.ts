@@ -40,6 +40,12 @@ export interface Workout extends ScopedContent {
   updatedAt: string;
 }
 
+/** A workout released to the authenticated client through one assignment. */
+export interface AssignedWorkout extends Workout {
+  assignmentId: string;
+  scheduledWeekdays: number[];
+}
+
 export interface WorkoutExercise {
   id: string;
   workoutId: string;
