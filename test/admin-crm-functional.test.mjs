@@ -87,7 +87,7 @@ test("all five tabs query only target client and perform bounded database pagina
       assert.ok(i.calls.some(x=>x[0]===table&&x[1]==="eq"&&x[2]===(table==="audit_logs"?"entity_id":"client_id")&&x[3]===id));
       assert.ok(i.calls.some(x=>x[0]===table&&x[1]==="range"&&x[2]===20&&x[3]===39));
     }
-    if(["treinos","alimentacao","midia"].includes(tab))assert.ok(i.calls.some(x=>x[1]==="eq"&&x[2]==="scope"&&x[3]==="CLIENT"));
+    if(["alimentacao","midia"].includes(tab))assert.ok(i.calls.some(x=>x[1]==="eq"&&x[2]==="scope"&&x[3]==="CLIENT"));
     for(const group of data.groups){assert.equal(group.records.length,0);assert.equal(group.total,0);assert.ok(group.empty);}
   }
 });
@@ -96,12 +96,22 @@ test("real field mappings preserve recorded weight and do not fabricate absent f
   const data=await createAdminClientRecordsRepository(i.client).getRecords(id,"evolucao",1);
   assert.equal(data.groups[0].records[0].title,"62,5 kg");assert.equal(data.groups[0].records[0].date,"2026-09-16");assert.equal(data.groups[1].total,0);
 });
-test("tab range recovery preserves client ownership and CLIENT scope on the recount",async()=>{
+test("tab range recovery preserves assignment ownership on the recount",async()=>{
   const i=records({rangeError:{code:"PGRST103"}});
   const result=await createAdminClientRecordsRepository(i.client).getRecords(id,"treinos",2);
   assert.equal(result.groups[0].total,0);assert.equal(result.groups[0].records.length,0);
   assert.equal(i.calls.filter(x=>x[1]==="eq"&&x[2]==="client_id"&&x[3]===id).length,2);
-  assert.equal(i.calls.filter(x=>x[1]==="eq"&&x[2]==="scope"&&x[3]==="CLIENT").length,2);
+  assert.equal(i.calls.filter(x=>x[1]==="eq"&&x[2]==="scope"&&x[3]==="CLIENT").length,0);
+});
+test("training records are sourced from assignments, not the legacy workout client_id field",async()=>{
+  const i=records({tables:{workout_assignments:[{id:"assignment-a",starts_on:"2026-09-18",ends_on:"2026-10-18",is_active:true,created_at:"2026-09-18T00:00:00Z",workout:{id:"workout-a",name:"Treino de Pernas",status:"draft",is_active:true,duration_minutes:45},schedule:[{weekday:0,schedule_kind:"WORKOUT"}]}]}});
+  const data=await createAdminClientRecordsRepository(i.client).getRecords(id,"treinos",1);
+  const record=data.groups[0].records[0];
+  assert.equal(record.title,"Treino de Pernas");
+  assert.equal(record.fields.find(field=>field.label==="Situação da atribuição")?.value,"Ativa");
+  assert.equal(record.fields.find(field=>field.label==="Dias configurados")?.value,"1");
+  assert.ok(i.calls.some(call=>call[0]==="workout_assignments"&&call[1]==="eq"&&call[2]==="client_id"&&call[3]===id));
+  assert.ok(!i.calls.some(call=>call[0]==="workouts"));
 });
 test("associated files use private signed URLs; signing errors are not empty states",async()=>{
   const tables={media_assets:[{id,title:"Private fixture",bucket:"images",path:"clients/unit/fixture.png"}]};

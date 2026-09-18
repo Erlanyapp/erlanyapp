@@ -165,12 +165,34 @@ test("admin detail exposes assignment edit controls and refreshes the server-ren
   assert.match(actions, /revalidatePath\(`\/admin\/treinos\/\$\{id\}`\)/);
 });
 
-test("client assigned-workout query is scoped to the authenticated owner and active period", async () => {
+test("client assigned-workout query is scoped to the authenticated owner and active São Paulo date", async () => {
   const repository = await source("src/repositories/content-repository.ts");
   assert.match(repository, /from\("workout_assignments"\).*\.eq\("client_id",owner\)\.eq\("is_active",true\)\.lte\("starts_on"/s);
   assert.match(repository, /ends_on\.is\.null,ends_on\.gte/);
-  assert.match(repository, /row\.is_active===true&&row\.status==="published"/);
+  assert.match(repository, /const today=saoPauloDate\(\)/);
+  assert.match(repository, /row\.is_active===true/);
+  assert.doesNotMatch(repository, /row\.status==="published"/);
   assert.doesNotMatch(repository, /service_role/);
+});
+
+test("assignment UI presents trusted client names while retaining UUID values", async () => {
+  const repository = await source("src/repositories/admin-workout-repository.ts");
+  const detail = await source("src/app/(admin)/admin/treinos/[id]/page.tsx");
+  const editor = await source("src/components/admin/workout-editor.tsx");
+  assert.match(repository, /select\("id,profile:profiles\(full_name,email,avatar_url\)"\)/);
+  assert.match(repository, /name:typeof profile\?\.full_name==="string"/);
+  assert.match(detail, /value=\{client\.id\}>\s*\{client\.name\}/s);
+  assert.match(editor, /value=\{client\.id\}>\{client\.name\}/);
+  assert.doesNotMatch(detail, /clientName\(client\)/);
+});
+
+test("CRM uses assignment relations and keeps assignment lifecycle information after refresh", async () => {
+  const repository = await source("src/repositories/admin-client-records-repository.ts");
+  assert.match(repository, /read\("workout_assignments","id,starts_on,ends_on,is_active/);
+  assert.match(repository, /workout:workouts\(id,name,description,status,is_active,level,duration_minutes\)/);
+  assert.match(repository, /schedule:workout_assignment_schedule/);
+  assert.match(repository, /\["Situação da atribuição",row\.is_active\?"Ativa":"Inativa"\]/);
+  assert.match(repository, /\["Dias configurados",String\(schedule\.length\)\]/);
 });
 
 test("migration enables RLS and limits assignment visibility to admins or the owning client", async () => {
@@ -181,4 +203,13 @@ test("migration enables RLS and limits assignment visibility to admins or the ow
   assert.match(migration, /clients read own workout assignments.*client_id in \(select id from public\.clients where user_id = \(select auth\.uid\(\)\)\)/s);
   assert.match(migration, /clients read own workout assignment schedule/);
   assert.equal(workout.length, 36);
+});
+
+test("assignment migration releases only active in-period assignments to their owning client", async () => {
+  const migration = await source("supabase/migrations/20260918125557_allow_assigned_workout_release.sql");
+  assert.match(migration, /assignment\.workout_id = workouts\.id/);
+  assert.match(migration, /assignment\.starts_on <= current_date/);
+  assert.match(migration, /assignment\.ends_on is null or assignment\.ends_on >= current_date/);
+  assert.match(migration, /client\.user_id = \(select auth\.uid\(\)\)/);
+  assert.match(migration, /drop policy if exists "workout exercises accessible workout read"/);
 });

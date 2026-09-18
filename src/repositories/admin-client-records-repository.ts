@@ -7,6 +7,8 @@ const text=(value:unknown)=>typeof value==="string"?value:null;
 const number=(value:unknown)=>value===null||value===undefined?null:new Intl.NumberFormat("pt-BR",{maximumFractionDigits:2}).format(Number(value));
 const fields=(values:Array<[string,string|null]>)=>values.filter((x):x is [string,string]=>x[1]!==null).map(([label,value])=>({label,value}));
 const eventTitle=(action:string)=>({profile_updated:"Perfil atualizado",client_status_changed:"Status do cadastro alterado",client_created:"Cliente criado pelo Admin"}[action]??action);
+const object=(value:unknown):Row=>value&&typeof value==="object"&&!Array.isArray(value)?value as Row:{};
+const rows=(value:unknown):Row[]=>Array.isArray(value)?value as Row[]:[];
 
 export function createAdminClientRecordsRepository(client:SupabaseClient) {
   const pageSize=20;
@@ -38,12 +40,13 @@ export function createAdminClientRecordsRepository(client:SupabaseClient) {
     async getRecords(id:string,tab:ClientTab,page:number):Promise<AdminClientRecords> {
       let groups:AdminClientRecordGroup[]=[];
       if(tab==="treinos") {
-        const result=await read("workouts","id,name,description,status,is_active,level,duration_minutes,created_at,updated_at",id,page,"updated_at",true);
-        groups=[group("Treinos individuais","Nenhum treino atribuído.",result,row=>({...base(row,String(row.name)),fields:fields([
-          ["Publicação",row.status==="published"?"Publicado":row.status==="draft"?"Rascunho":text(row.status)],
-          ["Disponibilidade",row.is_active?"Ativo":"Inativo"],["Nível",text(row.level)],
-          ["Duração",row.duration_minutes===null?null:`${number(row.duration_minutes)} min`],
-        ])}))];
+        const result=await read("workout_assignments","id,starts_on,ends_on,is_active,created_at,updated_at,workout:workouts(id,name,description,status,is_active,level,duration_minutes),schedule:workout_assignment_schedule(id,weekday,schedule_kind)",id,page,"updated_at");
+        groups=[group("Treinos atribuídos","Nenhum treino atribuído.",result,row=>{const workout=object(row.workout),schedule=rows(row.schedule);return {...base(row,text(workout.name)??"Treino atribuído"),description:text(workout.description),fields:fields([
+          ["Publicação",workout.status==="published"?"Publicado":workout.status==="draft"?"Rascunho":text(workout.status)],
+          ["Disponibilidade",workout.is_active?"Ativo":"Inativo"],["Situação da atribuição",row.is_active?"Ativa":"Inativa"],
+          ["Início",text(row.starts_on)],["Fim",text(row.ends_on)??"Sem fim"],["Dias configurados",String(schedule.length)],
+          ["Nível",text(workout.level)],["Duração",workout.duration_minutes===null?null:`${number(workout.duration_minutes)} min`],
+        ])}})];
       } else if(tab==="alimentacao") {
         const result=await read("nutrition_plans","id,name,description,created_at,updated_at",id,page,"updated_at",true);
         groups=[group("Planos alimentares individuais","Nenhum plano alimentar atribuído.",result,row=>base(row,String(row.name)))];

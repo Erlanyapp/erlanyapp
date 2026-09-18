@@ -30,7 +30,9 @@ export default async function ExerciseDetailPage({ params, searchParams }: { par
       {item && <dl className="exercise-prescription">
         {item.sets != null && <div><dt>Séries</dt><dd>{item.sets}</dd></div>}
         {item.repetitions && <div><dt>Repetições</dt><dd>{item.repetitions}</dd></div>}
+        {item.load && <div><dt>Carga</dt><dd>{item.load}</dd></div>}
         {item.restSeconds != null && <div><dt>Descanso</dt><dd>{item.restSeconds}s</dd></div>}
+        {item.durationSeconds != null && <div><dt>Duração</dt><dd>{item.durationSeconds}s</dd></div>}
       </dl>}
       <Card className="exercise-instructions"><AppIcon name="tips" size={24} /><div><h3>Orientações</h3><p>{exercise.instructions ?? "Siga a orientação do seu profissional."}</p>{item?.notes && <p>{item.notes}</p>}{exercise.muscles.length > 0 && <small>Músculos: {exercise.muscles.join(", ")}</small>}</div></Card>
       <div className="detail-meta"><span>{exercise.category ?? "Exercício"}</span>{exercise.difficulty && <span>{exercise.difficulty}</span>}{exercise.equipment && <span>{exercise.equipment}</span>}</div>

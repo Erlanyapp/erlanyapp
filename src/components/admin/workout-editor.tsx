@@ -7,7 +7,9 @@ import { saveWorkout, type WorkoutActionState } from "@/app/(admin)/admin/treino
 
 type Client = {
   id: string;
-  profile?: { full_name?: string } | { full_name?: string }[] | null;
+  name: string;
+  email?: string | null;
+  avatarUrl?: string | null;
 };
 
 type WorkoutValues = {
@@ -23,9 +25,6 @@ type WorkoutValues = {
 };
 
 const initialState: WorkoutActionState = {};
-
-const clientName = (client: Client) =>
-  Array.isArray(client.profile) ? client.profile[0]?.full_name : client.profile?.full_name;
 
 const valuesFor = (item?: Record<string, unknown>): WorkoutValues => ({
   name: String(item?.name ?? ""),
@@ -92,7 +91,7 @@ export function WorkoutEditor({ clients, item }: { clients: Client[]; item?: Rec
         Cliente (somente CLIENT)
         <select name="clientId" value={values.clientId} disabled={values.scope !== "CLIENT"} required={values.scope === "CLIENT"} onChange={(event) => update("clientId", event.target.value)}>
           <option value="">Selecione</option>
-          {clients.map((client) => <option key={client.id} value={client.id}>{clientName(client) ?? client.id}</option>)}
+          {clients.map((client) => <option key={client.id} value={client.id}>{client.name}</option>)}
         </select>
       </label>
       <label>

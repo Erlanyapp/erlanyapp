@@ -22,6 +22,14 @@ export interface ContentRepository {
 
 type ContentRow = Record<string, unknown>;
 
+const saoPauloDate = () => {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Sao_Paulo", year: "numeric", month: "2-digit", day: "2-digit",
+  }).formatToParts(new Date());
+  const value = (kind: Intl.DateTimeFormatPartTypes) => parts.find((part) => part.type === kind)?.value;
+  return `${value("year")}-${value("month")}-${value("day")}`;
+};
+
 const scoped = (row: ContentRow) => ({
   scope: row.scope as Exercise["scope"],
   clientId: (row.client_id as string | null) ?? null,
@@ -77,7 +85,7 @@ export function createContentRepository(client: SupabaseClient, resolveOwner?: (
   };
   const getWorkout = (id: string) => {
     if (!workouts.has(id)) workouts.set(id, (async () => {
-      const { data, error } = await client.from("workouts").select("*").or(await contentScope()).eq("id", id).eq("is_active", true).eq("status", "published").maybeSingle();
+      const { data, error } = await client.from("workouts").select("*").eq("id", id).eq("is_active", true).maybeSingle();
       if (error) throw error;
       return data ? toWorkout(data as ContentRow) : null;
     })());
@@ -96,10 +104,12 @@ export function createContentRepository(client: SupabaseClient, resolveOwner?: (
     },
     async listAssignedWorkouts() {
       const owner=await ownClientId();
-      const { data, error } = await client.from("workout_assignments").select("workout:workouts(*,cover_asset:media_assets(bucket,path))").eq("client_id",owner).eq("is_active",true).lte("starts_on",new Date().toISOString().slice(0,10)).or("ends_on.is.null,ends_on.gte."+new Date().toISOString().slice(0,10));
+      const today=saoPauloDate();
+      const { data, error } = await client.from("workout_assignments").select("workout:workouts(*,cover_asset:media_assets(bucket,path))").eq("client_id",owner).eq("is_active",true).lte("starts_on",today).or("ends_on.is.null,ends_on.gte."+today);
       if (error) throw error;
-      const rows=(data??[]).map(row=>(row as ContentRow).workout as ContentRow|null).filter((row):row is ContentRow=>!!row&&row.is_active===true&&row.status==="published");
-      return Promise.all(rows.map(async row=>({...toWorkout(row),coverUrl:await signedAssetUrl(row.cover_asset as ContentRow|null)})));
+      const rows=(data??[]).map(row=>(row as ContentRow).workout as ContentRow|null).filter((row):row is ContentRow=>!!row&&row.is_active===true);
+      const unique=[...new Map(rows.map(row=>[String(row.id),row])).values()];
+      return Promise.all(unique.map(async row=>({...toWorkout(row),coverUrl:await signedAssetUrl(row.cover_asset as ContentRow|null)})));
     },
     getWorkout,
     async listWorkoutExercises(workoutId) {
@@ -110,7 +120,8 @@ export function createContentRepository(client: SupabaseClient, resolveOwner?: (
         id: row.id as string, workoutId: row.workout_id as string, exerciseId: row.exercise_id as string,
         videoId: (row.video_id as string | null) ?? null, position: row.position as number,
         sets: (row.sets as number | null) ?? null, repetitions: (row.repetitions as string | null) ?? null,
-        restSeconds: (row.rest_seconds as number | null) ?? null, notes: (row.notes as string | null) ?? null,
+        load: (row.load as string | null) ?? null, restSeconds: (row.rest_seconds as number | null) ?? null,
+        durationSeconds: (row.duration_seconds as number | null) ?? null, notes: (row.notes as string | null) ?? null,
         exerciseName: ((row.exercise as ContentRow | null)?.name as string | undefined), exerciseThumbnailUrl: ((row.exercise as ContentRow | null)?.thumbnail_url as string | null) ?? null,
       }));
     },

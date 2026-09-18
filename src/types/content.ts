@@ -48,7 +48,9 @@ export interface WorkoutExercise {
   position: number;
   sets: number | null;
   repetitions: string | null;
+  load: string | null;
   restSeconds: number | null;
+  durationSeconds: number | null;
   notes: string | null;
   exerciseName?: string;
   exerciseThumbnailUrl?: string | null;

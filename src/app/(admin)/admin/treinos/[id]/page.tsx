@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { WorkoutEditor } from "@/components/admin/workout-editor";
 import { requireAdmin } from "@/lib/supabase/admin";
 import { createAdminWorkoutService } from "@/services/admin-workout-service";
+import type { AdminWorkoutClient } from "@/repositories/admin-workout-repository";
 
 import {
   addWorkoutExercise,
@@ -45,8 +46,16 @@ type AssignmentEntry = {
   starts_on: string;
   ends_on?: string | null;
   is_active: boolean;
-  client?: { profile?: { full_name?: string | null }[] | null } | null;
+  client?: { id: string; profile?: Profile | Profile[] | null } | null;
   schedule?: { weekday: number; schedule_kind: string }[] | null;
+};
+
+type Profile = { full_name?: string | null };
+
+const clientName = (client?: AssignmentEntry["client"]) => {
+  const profile = client?.profile;
+  const name = Array.isArray(profile) ? profile[0]?.full_name : profile?.full_name;
+  return name?.trim() || "Cliente sem nome";
 };
 
 export default async function WorkoutDetail({
@@ -160,12 +169,12 @@ export default async function WorkoutDetail({
         <h3>Atribuições</h3>
 
         {(assignments as AssignmentEntry[]).map((assignment) => {
-          const clientName = assignment.client?.profile?.[0]?.full_name ?? "Cliente";
+          const assignedClientName = clientName(assignment.client);
 
           return (
             <article className="card content-list-row" key={assignment.id}>
               <span>
-                {clientName} · {assignment.starts_on} — {assignment.ends_on ?? "sem fim"}
+                {assignedClientName} · {assignment.starts_on} — {assignment.ends_on ?? "sem fim"}
               </span>
 
               <details>
@@ -177,9 +186,9 @@ export default async function WorkoutDetail({
                   <label>
                     Cliente
                     <select name="clientId" defaultValue={assignment.client_id} required>
-                      {clients.map((client: { id: string; profile?: { full_name?: string | null }[] | null }) => (
+                      {(clients as AdminWorkoutClient[]).map((client) => (
                         <option key={client.id} value={client.id}>
-                          {client.profile?.[0]?.full_name ?? client.id}
+                          {client.name}
                         </option>
                       ))}
                     </select>
@@ -249,9 +258,9 @@ export default async function WorkoutDetail({
             Cliente
             <select name="clientId" required>
               <option value="">Selecione</option>
-              {clients.map((client: { id: string; profile?: { full_name?: string | null }[] | null }) => (
+              {(clients as AdminWorkoutClient[]).map((client) => (
                 <option key={client.id} value={client.id}>
-                  {client.profile?.[0]?.full_name ?? client.id}
+                  {client.name}
                 </option>
               ))}
             </select>
