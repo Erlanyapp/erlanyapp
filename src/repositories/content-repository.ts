@@ -21,6 +21,7 @@ export interface ContentRepository {
 }
 
 type ContentRow = Record<string, unknown>;
+type AssignmentScheduleRow = Pick<ContentRow, "weekday" | "schedule_kind">;
 
 const saoPauloDate = () => {
   const parts = new Intl.DateTimeFormat("en-US", {
@@ -29,6 +30,14 @@ const saoPauloDate = () => {
   const value = (kind: Intl.DateTimeFormatPartTypes) => parts.find((part) => part.type === kind)?.value;
   return `${value("year")}-${value("month")}-${value("day")}`;
 };
+
+// Assignment schedules use Monday = 0 through Sunday = 6. Derive the weekday
+// from the already time-zone-aware calendar date instead of the server's UTC
+// clock, which can otherwise select the wrong schedule around midnight.
+const saoPauloWeekday = () => (new Date(`${saoPauloDate()}T12:00:00Z`).getUTCDay() + 6) % 7;
+
+export const isScheduledWorkout = (schedule: AssignmentScheduleRow[] | null | undefined, weekday: number) =>
+  (schedule ?? []).some((item) => item.weekday === weekday && item.schedule_kind === "WORKOUT");
 
 const scoped = (row: ContentRow) => ({
   scope: row.scope as Exercise["scope"],
@@ -101,18 +110,32 @@ export function createContentRepository(client: SupabaseClient, resolveOwner?: (
       )));
     },
     async listWorkouts() {
-      const { data, error } = await client.from("workouts").select("*, cover_asset:media_assets(bucket,path)").or(await contentScope()).eq("is_active", true).eq("status", "published").order("name");
+      const { data, error } = await client.from("workouts").select("*, cover_asset:media_assets(bucket,path)").eq("scope", "GLOBAL").eq("is_active", true).eq("status", "published").order("name");
       if (error) throw error;
       return Promise.all(((data ?? []) as ContentRow[]).map(async (row) => ({ ...toWorkout(row), coverUrl: await signedAssetUrl(row.cover_asset as ContentRow | null) })));
     },
     async listAssignedWorkouts() {
-      const owner=await ownClientId();
-      const today=saoPauloDate();
-      const { data, error } = await client.from("workout_assignments").select("workout:workouts(*,cover_asset:media_assets(bucket,path))").eq("client_id",owner).eq("is_active",true).lte("starts_on",today).or("ends_on.is.null,ends_on.gte."+today);
+      const owner = await ownClientId();
+      const today = saoPauloDate();
+      const weekday = saoPauloWeekday();
+      const { data, error } = await client
+        .from("workout_assignments")
+        .select("workout:workouts(*,cover_asset:media_assets(bucket,path)),schedule:workout_assignment_schedule(weekday,schedule_kind)")
+        .eq("client_id", owner)
+        .eq("is_active", true)
+        .lte("starts_on", today)
+        .or("ends_on.is.null,ends_on.gte." + today)
+        .order("starts_on", { ascending: false })
+        .order("created_at", { ascending: false })
+        .order("id", { ascending: false });
       if (error) throw error;
-      const rows=(data??[]).map(row=>(row as ContentRow).workout as ContentRow|null).filter((row):row is ContentRow=>!!row&&row.is_active===true);
-      const unique=[...new Map(rows.map(row=>[String(row.id),row])).values()];
-      return Promise.all(unique.map(async row=>({...toWorkout(row),coverUrl:await signedAssetUrl(row.cover_asset as ContentRow|null)})));
+      const rows = (data ?? []) as ContentRow[];
+      const scheduled = rows
+        .filter((assignment) => isScheduledWorkout(assignment.schedule as AssignmentScheduleRow[] | null, weekday))
+        .map((assignment) => assignment.workout as ContentRow | null)
+        .filter((row): row is ContentRow => !!row && row.is_active === true);
+      const unique = [...new Map(scheduled.map((row) => [String(row.id), row])).values()];
+      return Promise.all(unique.map(async (row) => ({ ...toWorkout(row), coverUrl: await signedAssetUrl(row.cover_asset as ContentRow | null) })));
     },
     getWorkout,
     async listWorkoutExercises(workoutId) {

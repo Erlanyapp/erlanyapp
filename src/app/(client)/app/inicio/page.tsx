@@ -9,7 +9,7 @@ import { AppIcon } from "@/components/icons";
 export default async function HomePage() {
   const [{ account }, service] = await Promise.all([getClientAccount(), getContentService()]);
   let loadError = !service;
-  const workouts = service ? await service.listWorkouts().catch(() => { loadError = true; return []; }) : [];
+  const workouts = service ? await service.listAssignedWorkouts().catch(() => { loadError = true; return []; }) : [];
   return <div className="home-page">
     <section className="home-hero" aria-label="Seu cuidado de hoje"><AppHeader account={account} /><HomeDailyWorkout workout={workouts[0]} loadError={loadError} /></section>
     <div className="home-body">

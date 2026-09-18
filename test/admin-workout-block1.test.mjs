@@ -169,11 +169,15 @@ test("admin detail exposes assignment edit controls and refreshes the server-ren
 
 test("client assigned-workout query is scoped to the authenticated owner and active São Paulo date", async () => {
   const repository = await source("src/repositories/content-repository.ts");
-  assert.match(repository, /from\("workout_assignments"\).*\.eq\("client_id",owner\)\.eq\("is_active",true\)\.lte\("starts_on"/s);
+  assert.match(repository, /from\("workout_assignments"\)/);
+  assert.match(repository, /\.eq\("client_id", owner\)/);
+  assert.match(repository, /\.eq\("is_active", true\)/);
+  assert.match(repository, /\.lte\("starts_on", today\)/);
+  assert.match(repository, /schedule:workout_assignment_schedule\(weekday,schedule_kind\)/);
   assert.match(repository, /ends_on\.is\.null,ends_on\.gte/);
-  assert.match(repository, /const today=saoPauloDate\(\)/);
-  assert.match(repository, /row\.is_active===true/);
-  assert.doesNotMatch(repository, /row\.status==="published"/);
+  assert.match(repository, /const today = saoPauloDate\(\)/);
+  assert.match(repository, /row\.is_active === true/);
+  assert.doesNotMatch(repository, /row\.status === "published"/);
   assert.doesNotMatch(repository, /service_role/);
 });
 

@@ -26,7 +26,7 @@ async function moduleUrl(relative) {
 const domain = await import(await moduleUrl("src/domain/client-account.ts"));
 const { createAccountService } = await import(await moduleUrl("src/services/account-service.ts"));
 const { youtubeProvider } = await import(await moduleUrl("src/lib/content/video-provider.ts"));
-const { createContentRepository } = await import(await moduleUrl("src/repositories/content-repository.ts"));
+const { createContentRepository, isScheduledWorkout } = await import(await moduleUrl("src/repositories/content-repository.ts"));
 const { createAccountRepository } = await import(await moduleUrl("src/repositories/account-repository.ts"));
 const account = { id: "owner-a", clientId: "client-a", name: "Cliente", email: "", avatarPath: null, avatarUrl: null, role: "CLIENT" };
 
@@ -107,7 +107,7 @@ test("exercise media follows the private thumbnail asset relation and renders no
 function infrastructure(rows, storageError = null) {
   const calls=[];let authCalls=0;let signCalls=0;
   const client={auth:{getUser:async()=>{authCalls++;return {data:{user:{id:"user-a"}},error:null};}},from(table){
-    const query={select(...args){calls.push([table,"select",...args]);return this;},eq(...args){calls.push([table,"eq",...args]);return this;},or(...args){calls.push([table,"or",...args]);return this;},order(){return this;},single(){return Promise.resolve({data:rows[table]?.[0]??{id:"client-a"},error:null});},then(resolve){return Promise.resolve({data:rows[table]??[],error:null}).then(resolve);}};
+    const query={select(...args){calls.push([table,"select",...args]);return this;},eq(...args){calls.push([table,"eq",...args]);return this;},lte(...args){calls.push([table,"lte",...args]);return this;},or(...args){calls.push([table,"or",...args]);return this;},order(){return this;},single(){return Promise.resolve({data:rows[table]?.[0]??{id:"client-a"},error:null});},then(resolve){return Promise.resolve({data:rows[table]??[],error:null}).then(resolve);}};
     return query;
   },storage:{from(){return {createSignedUrl:async()=>{signCalls++;return {data:storageError?null:{signedUrl:"signed-private-image"},error:storageError};}};}}};
   return {client,calls,authCalls:()=>authCalls,signCalls:()=>signCalls};
@@ -118,10 +118,58 @@ test("all progress reads explicitly use authenticated ownership, including ADMIN
   for(const table of ["progress_weights","progress_measurements","progress_photos","performance_records"])assert.ok(infra.calls.some(call=>JSON.stringify(call)===JSON.stringify([table,"eq","client_id","client-a"])));
   assert.equal(infra.authCalls(),1);
 });
-test("scoped content reads restrict GLOBAL or the authenticated CLIENT, never every client",async()=>{
+test("workouts expose only published GLOBAL content outside assignment availability, while other content remains client-scoped",async()=>{
   const infra=infrastructure({clients:[{id:"client-a"}]});const repository=createContentRepository(infra.client);
   await Promise.all([repository.listWorkouts(),repository.listExercises(),repository.listVideos(),repository.listTips(),repository.listNutritionPlans(),repository.listRecipes(),repository.listNutritionMeals("plan-a")]);
-  for(const table of ["workouts","exercises","videos","tips","nutrition_plans","recipes","nutrition_meals"])assert.ok(infra.calls.some(call=>JSON.stringify(call)===JSON.stringify([table,"or","scope.eq.GLOBAL,and(scope.eq.CLIENT,client_id.eq.client-a)"])));
+  assert.ok(infra.calls.some(call=>JSON.stringify(call)===JSON.stringify(["workouts","eq","scope","GLOBAL"])));
+  for(const table of ["exercises","videos","tips","nutrition_plans","recipes","nutrition_meals"])assert.ok(infra.calls.some(call=>JSON.stringify(call)===JSON.stringify([table,"or","scope.eq.GLOBAL,and(scope.eq.CLIENT,client_id.eq.client-a)"])));
+});
+test("daily workout resolves only the authenticated client's active, in-period weekly WORKOUT assignment", async () => {
+  const parts = new Intl.DateTimeFormat("en-US", { timeZone: "America/Sao_Paulo", weekday: "short" }).format(new Date()).toLowerCase();
+  const weekday = ({ mon: 0, tue: 1, wed: 2, thu: 3, fri: 4, sat: 5, sun: 6 })[parts];
+  const infra = infrastructure({
+    clients: [{ id: "client-a" }],
+    workout_assignments: [
+      { workout: { id: "assigned-workout", name: "A", slug: "a", scope: "GLOBAL", is_active: true, created_at: "2026-09-18", updated_at: "2026-09-18" }, schedule: [{ weekday, schedule_kind: "WORKOUT" }] },
+      { workout: { id: "rest-workout", name: "B", slug: "b", scope: "GLOBAL", is_active: true, created_at: "2026-09-18", updated_at: "2026-09-18" }, schedule: [{ weekday, schedule_kind: "REST" }] },
+      { workout: { id: "daily-workout", name: "C", slug: "c", scope: "GLOBAL", is_active: true, created_at: "2026-09-18", updated_at: "2026-09-18" }, schedule: Array.from({ length: 7 }, (_, day) => ({ weekday: day, schedule_kind: "WORKOUT" })) },
+    ],
+  });
+  const result = await createContentRepository(infra.client).listAssignedWorkouts();
+  assert.deepEqual(result.map((workout) => workout.id), ["assigned-workout", "daily-workout"]);
+  assert.ok(infra.calls.some((call) => JSON.stringify(call) === JSON.stringify(["workout_assignments", "eq", "client_id", "client-a"])));
+  assert.ok(infra.calls.some((call) => call[0] === "workout_assignments" && call[1] === "lte" && call[2] === "starts_on"));
+});
+test("each client schedule is evaluated independently: A Mon/Wed/Fri, B Tue/Thu, C every day", () => {
+  const a = [0, 2, 4].map((weekday) => ({ weekday, schedule_kind: "WORKOUT" }));
+  const b = [1, 3].map((weekday) => ({ weekday, schedule_kind: "WORKOUT" }));
+  const c = Array.from({ length: 7 }, (_, weekday) => ({ weekday, schedule_kind: "WORKOUT" }));
+  assert.equal(isScheduledWorkout(a, 0), true);
+  assert.equal(isScheduledWorkout(a, 1), false);
+  assert.equal(isScheduledWorkout(b, 1), true);
+  assert.equal(isScheduledWorkout(b, 4), false);
+  for (let weekday = 0; weekday < 7; weekday += 1) assert.equal(isScheduledWorkout(c, weekday), true);
+});
+test("home uses the scheduled assignment source while workout detail still resolves through the protected workout and exercise reads", async () => {
+  const home = await source("src/app/(client)/app/inicio/page.tsx");
+  const detail = await source("src/app/(client)/app/treinos/[id]/page.tsx");
+  assert.match(home, /service\.listAssignedWorkouts\(\)/);
+  assert.match(detail, /service\.getWorkout\(id\)/);
+  assert.match(detail, /service\.listWorkoutExercises\(id\)/);
+});
+test("assigned draft workout RLS is owner-bound, scheduled, includes exercises, and evaluates civil dates in Sao Paulo", async () => {
+  const migration = await source("supabase/migrations/20260918182740_require_assignment_for_private_workouts.sql");
+  assert.match(migration, /assignment\.workout_id = workouts\.id/);
+  assert.match(migration, /client\.user_id = \(select auth\.uid\(\)\)/);
+  assert.match(migration, /schedule\.assignment_id = assignment\.id/);
+  assert.match(migration, /schedule\.schedule_kind = 'WORKOUT'/);
+  assert.match(migration, /schedule\.weekday = extract\(isodow/);
+  assert.match(migration, /status = 'published' and scope = 'GLOBAL'/);
+  assert.match(migration, /workout\.id = workout_exercises\.workout_id/);
+  assert.match(migration, /America\/Sao_Paulo/);
+  assert.match(migration, /assignment\.is_active/);
+  assert.match(migration, /assignment\.starts_on <=/);
+  assert.match(migration, /assignment\.ends_on is null or assignment\.ends_on >=/);
 });
 test("private image signing failure is an error, not a misleading empty success",async()=>{
   const infra=infrastructure({clients:[{id:"client-a"}],progress_photos:[{id:"photo-a",asset:{bucket:"images",path:"progress/client-a/a.jpg"}}]},new Error("Storage denied"));
