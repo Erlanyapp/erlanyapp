@@ -14,6 +14,7 @@ const moduleUrl = async (file) => {
 };
 
 const domain = await import(await moduleUrl("src/domain/admin-workout.ts"));
+const { createAdminWorkoutRepository } = await import(await moduleUrl("src/repositories/admin-workout-repository.ts"));
 const clientA = "00000000-0000-0000-0000-000000000001";
 const clientB = "00000000-0000-0000-0000-000000000002";
 const workout = "00000000-0000-0000-0000-000000000003";
@@ -93,7 +94,47 @@ test("assignment create, edit, activation and cancellation use the same assignme
   assert.match(repository, /assignment_id:id,weekday:day\.weekday,schedule_kind:day\.kind/);
   assert.match(repository, /toggleAssignment\(id:string,isActive:boolean\).*update\(\{is_active:isActive\}\)\.eq\("id",id\)/s);
   assert.match(repository, /cancelAssignment\(id:string\).*delete\(\)\.eq\("id",id\)/s);
-  assert.match(actions, /updateAssignment\(workoutId:string,id:string,form:FormData\).*adminWorkoutService\.updateAssignment\(id,form\).*toggleAssignment\(id,form\.get\("isActive"\)==="on"\)/s);
+  assert.match(actions, /updateAssignment\(workoutId:\s*string,\s*id:\s*string,\s*form:\s*FormData\).*adminWorkoutService\.updateAssignment\(id, form\).*toggleAssignment\(id, form\.get\("isActive"\) === "on"\)/s);
+});
+
+test("workout creation maps domain camelCase fields to database columns and keeps form values on errors", async () => {
+  const repository = await source("src/repositories/admin-workout-repository.ts");
+  const actions = await source("src/app/(admin)/admin/treinos/actions.ts");
+  const editor = await source("src/components/admin/workout-editor.tsx");
+  assert.match(repository, /insert\(\{name:input\.name,description:input\.description,category:input\.category,level:input\.level,duration_minutes:input\.durationMinutes,scope:input\.scope,client_id:input\.clientId,status:input\.status,is_active:input\.isActive,slug\}\)/);
+  assert.doesNotMatch(repository, /insert\(\{\.\.\.input/);
+  assert.match(actions, /return \{ error: message\(error\) \}/);
+  assert.match(actions, /catch \(error\) \{\s*return \{ error: message\(error\) \};\s*\}\s*refresh\(workout\);\s*redirect\(`\/admin\/treinos\/\$\{workout\}`\);/s);
+  assert.match(editor, /useActionState/);
+  assert.match(editor, /const \[values, setValues\] = useState/);
+  assert.match(editor, /state\.error \? <p className="crm-form-error" role="alert">/);
+});
+
+test("repository sends only database column names for a real GLOBAL workout insert", async () => {
+  const writes = [];
+  const client = {
+    from(table) {
+      assert.equal(table, "workouts");
+      return {
+        insert(payload) {
+          writes.push(payload);
+          return { select: () => ({ single: async () => ({ data: { id: workout }, error: null }) }) };
+        },
+      };
+    },
+  };
+  const id = await createAdminWorkoutRepository(client).save(null, {
+    name: "Treino Global", description: null, category: null, level: null,
+    durationMinutes: 45, scope: "GLOBAL", clientId: null, status: "draft", isActive: true,
+  });
+  assert.equal(id, workout);
+  assert.deepEqual(Object.keys(writes[0]).sort(), [
+    "category", "client_id", "description", "duration_minutes", "is_active",
+    "level", "name", "scope", "slug", "status",
+  ]);
+  assert.equal(writes[0].client_id, null);
+  assert.equal(writes[0].duration_minutes, 45);
+  assert.equal(writes[0].is_active, true);
 });
 
 test("admin list delegates search, status, scope, count and database pagination to Supabase", async () => {
