@@ -154,10 +154,12 @@ test("admin list delegates search, status, scope, count and database pagination 
 });
 
 test("admin detail exposes assignment edit controls and refreshes the server-rendered data", async () => {
-  const detail = await source("src/app/(admin)/admin/treinos/[id]/page.tsx");
+  const workspace = await source("src/components/admin/workout-workspace.tsx");
+  const detail = workspace;
   const actions = await source("src/app/(admin)/admin/treinos/actions.ts");
-  assert.match(detail, /<summary>Editar<\/summary>/);
-  assert.match(detail, /action=\{updateAssignment\.bind\(null, workoutId, assignment\.id\)\}/);
+  assert.match(workspace, /setModal\(assignment\)/);
+  assert.match(workspace, /updateAssignment\(workoutId, assignment\.id, form\)/);
+  assert.match(workspace, /assignWorkout\(workoutId, form\)/);
   for (const field of ["clientId", "startsOn", "endsOn", "isActive"]) {
     assert.match(detail, new RegExp(`name=\"${field.replace(/[{}$]/g, "\\$&")}\"`));
   }
@@ -177,7 +179,7 @@ test("client assigned-workout query is scoped to the authenticated owner and act
 
 test("assignment UI presents trusted client names while retaining UUID values", async () => {
   const repository = await source("src/repositories/admin-workout-repository.ts");
-  const detail = await source("src/app/(admin)/admin/treinos/[id]/page.tsx");
+  const detail = await source("src/components/admin/workout-workspace.tsx");
   const editor = await source("src/components/admin/workout-editor.tsx");
   assert.match(repository, /select\("id,profile:profiles\(full_name,email,avatar_url\)"\)/);
   assert.match(repository, /name:typeof profile\?\.full_name==="string"/);

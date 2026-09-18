@@ -50,8 +50,17 @@ export function WorkoutEditor({ clients, item }: { clients: Client[]; item?: Rec
   };
 
   return (
-    <form action={action} className="crm-profile-form">
-      <h3>{item ? "Editar treino" : "Novo treino"}</h3>
+    <form action={action} className="crm-profile-form workout-editor">
+      <header className="workout-editor-header">
+        <div>
+          <p className="admin-overline">{item ? "EDITAR TREINO" : "NOVO TREINO"}</p>
+          <h2>{values.name || (item ? "Treino sem nome" : "Novo treino")}</h2>
+          <p>Defina as informações principais antes de montar os exercícios e as atribuições.</p>
+        </div>
+        <div className="workout-editor-badges"><span className={`workout-status ${values.isActive ? "active" : "inactive"}`}>{values.isActive ? "● Ativo" : "● Inativo"}</span><span className="workout-status neutral">{values.scope === "GLOBAL" ? "Global" : "Cliente"}</span><span className="workout-status neutral">{values.status === "published" ? "Publicado" : "Rascunho"}</span></div>
+      </header>
+
+      <h3>Informações do treino</h3>
 
       {state.error ? <p className="crm-form-error" role="alert">{state.error}</p> : null}
 
@@ -105,10 +114,7 @@ export function WorkoutEditor({ clients, item }: { clients: Client[]; item?: Rec
         <input name="isActive" type="checkbox" checked={values.isActive} onChange={(event) => update("isActive", event.target.checked)} />
         Treino ativo
       </label>
-      <button className="button button-primary" disabled={pending}>
-        {pending ? "Salvando…" : "Salvar treino"}
-      </button>
-      <Link href={item ? `/admin/treinos/${item.id}` : "/admin/treinos"} className="button button-outline">Cancelar</Link>
+      <footer className="workout-editor-actions"><Link href={item ? `/admin/treinos/${item.id}` : "/admin/treinos"} className="button button-outline">Cancelar</Link><button className="button button-primary" disabled={pending}>{pending ? "Salvando…" : "Salvar alterações"}</button></footer>
     </form>
   );
 }
