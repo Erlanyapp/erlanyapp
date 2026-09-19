@@ -10,8 +10,12 @@ export default async function HomePage() {
   const [{ account }, service] = await Promise.all([getClientAccount(), getContentService()]);
   let loadError = !service;
   const workouts = service ? await service.listAssignedWorkouts().catch(() => { loadError = true; return []; }) : [];
+  const dailyWorkout = workouts[0];
+  const checkedIn = service && dailyWorkout
+    ? await service.getTodayWorkoutCheckin(dailyWorkout.assignmentId).then(Boolean).catch(() => false)
+    : false;
   return <div className="home-page">
-    <section className="home-hero" aria-label="Seu cuidado de hoje"><AppHeader account={account} /><HomeDailyWorkout workout={workouts[0]} loadError={loadError} /></section>
+    <section className="home-hero" aria-label="Seu cuidado de hoje"><AppHeader account={account} /><HomeDailyWorkout workout={dailyWorkout} loadError={loadError} checkedIn={checkedIn} /></section>
     <div className="home-body">
       <nav className="quick-grid" aria-label="Atalhos da Home">
         <Link href="/app/evolucao"><Card><span className="quick-icon"><AppIcon name="progress" size={30} /></span><strong>Meu<br />progresso</strong></Card></Link>

@@ -9,15 +9,17 @@ const fields=(values:Array<[string,string|null]>)=>values.filter((x):x is [strin
 const eventTitle=(action:string)=>({profile_updated:"Perfil atualizado",client_status_changed:"Status do cadastro alterado",client_created:"Cliente criado pelo Admin"}[action]??action);
 const object=(value:unknown):Row=>value&&typeof value==="object"&&!Array.isArray(value)?value as Row:{};
 const rows=(value:unknown):Row[]=>Array.isArray(value)?value as Row[]:[];
+const saoPauloWeekStart=()=>{const parts=new Intl.DateTimeFormat("en-US",{timeZone:"America/Sao_Paulo",year:"numeric",month:"2-digit",day:"2-digit"}).formatToParts(new Date());const part=(type:Intl.DateTimeFormatPartTypes)=>parts.find(item=>item.type===type)?.value;const today=`${part("year")}-${part("month")}-${part("day")}`;const date=new Date(`${today}T12:00:00Z`);date.setUTCDate(date.getUTCDate()-((date.getUTCDay()+6)%7));return date.toISOString().slice(0,10);};
 
 export function createAdminClientRecordsRepository(client:SupabaseClient) {
   const pageSize=20;
-  async function read(table:string,columns:string,id:string,page:number,order:string,scope=false,history=false) {
+  async function read(table:string,columns:string,id:string,page:number,order:string,scope=false,history=false,dateFrom?:string) {
     const query=(head=false)=>{
       let q=client.from(table).select(columns,{count:"exact",head});
       if(history) q=q.eq("entity","clients").eq("entity_id",id);
       else q=q.eq("client_id",id);
       if(scope) q=q.eq("scope","CLIENT");
+      if(dateFrom) q=q.gte("completed_date",dateFrom);
       return q.order(order,{ascending:false}).order("id",{ascending:false});
     };
     const start=(page-1)*pageSize;
@@ -51,16 +53,19 @@ export function createAdminClientRecordsRepository(client:SupabaseClient) {
         const result=await read("nutrition_plans","id,name,description,created_at,updated_at",id,page,"updated_at",true);
         groups=[group("Planos alimentares individuais","Nenhum plano alimentar atribuído.",result,row=>base(row,String(row.name)))];
       } else if(tab==="evolucao") {
-        const [weights,measurements,performance,photos]=await Promise.all([
+        const [weights,measurements,performance,photos,workoutCheckins,weekWorkoutCheckins]=await Promise.all([
           read("progress_weights","id,value,recorded_at,created_at",id,page,"recorded_at"),
           read("progress_measurements","id,measurements,recorded_at,created_at",id,page,"recorded_at"),
           read("performance_records","id,metric,value,unit,recorded_at,created_at",id,page,"recorded_at"),
           read("progress_photos","id,category,recorded_at,created_at",id,page,"recorded_at"),
+          read("workout_checkins","id,completed_date,completed_at,created_at,workout:workouts(name)",id,page,"completed_at"),
+          read("workout_checkins","id",id,1,"completed_at",false,false,saoPauloWeekStart()),
         ]);
         groups=[
           group("Peso","Nenhum peso registrado.",weights,row=>({...base(row,`${number(row.value)} kg`),fields:[]})),
           group("Medidas","Nenhuma medida registrada.",measurements,row=>({...base(row,"Registro de medidas"),fields:Object.entries((row.measurements??{}) as Row).filter(([,value])=>typeof value==="string"||typeof value==="number").map(([label,value])=>({label,value:String(value)}))})),
           group("Desempenho","Nenhum desempenho registrado.",performance,row=>({...base(row,String(row.metric)),fields:fields([["Valor",row.value===null?null:`${number(row.value)}${text(row.unit)?" "+row.unit:""}`]])})),
+          {title:"Treinos concluídos",empty:"Nenhum treino concluído.",total:workoutCheckins.total,records:[{id:"workout-checkin-summary",title:"Resumo de treinos",description:null,date:null,fields:fields([["Total",String(workoutCheckins.total)],["Nesta semana",String(weekWorkoutCheckins.total)],["Último",workoutCheckins.rows[0]?text(object(workoutCheckins.rows[0].workout).name)??"Treino concluído":null]])},...workoutCheckins.rows.map(row=>{const workout=object(row.workout);return {...base(row,text(workout.name)??"Treino concluído"),date:text(row.completed_at)??text(row.completed_date),fields:fields([["Data",text(row.completed_date)]])};})]},
           group("Registros de fotos","Nenhum registro de foto de evolução.",photos,row=>({...base(row,text(row.category)??"Foto de evolução"),description:"Consulte os arquivos associados na aba Mídia."})),
         ];
       } else if(tab==="midia") {

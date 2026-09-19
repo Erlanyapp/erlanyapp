@@ -17,6 +17,8 @@ export function createContentService(repository: ContentRepository) {
     listProgressWeights: () => repository.listProgressWeights(),
     listProgressMeasurements: () => repository.listProgressMeasurements(),
     listPerformanceRecords: () => repository.listPerformanceRecords(),
+    getTodayWorkoutCheckin: (assignmentId: string) => repository.getTodayWorkoutCheckin(assignmentId),
+    getWorkoutCheckinSummary: () => repository.getWorkoutCheckinSummary(),
     listProgressPhotos: () => repository.listProgressPhotos(),
     listTips: () => repository.listTips(),
   };

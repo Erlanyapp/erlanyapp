@@ -1,10 +1,10 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { AssignedWorkout, Exercise, PerformanceRecord, ProgressMeasurement, ProgressPhoto, ProgressWeight, Recipe, Tip, Workout, WorkoutExercise, WorkoutVideo, NutritionMeal, NutritionPlan } from "@/types/content";
+import type { AssignedWorkout, Exercise, PerformanceRecord, ProgressMeasurement, ProgressPhoto, ProgressWeight, Recipe, Tip, Workout, WorkoutCheckin, WorkoutCheckinSummary, WorkoutExercise, WorkoutVideo, NutritionMeal, NutritionPlan } from "@/types/content";
 
 export interface ContentRepository {
   listExercises(): Promise<Exercise[]>;
   listWorkouts(): Promise<Workout[]>;
-  listAssignedWorkouts(): Promise<Workout[]>;
+  listAssignedWorkouts(): Promise<AssignedWorkout[]>;
   listAssignedWorkoutSchedule(): Promise<AssignedWorkout[]>;
   getWorkout(id: string): Promise<Workout | null>;
   listWorkoutExercises(workoutId: string): Promise<WorkoutExercise[]>;
@@ -18,13 +18,15 @@ export interface ContentRepository {
   listProgressWeights(): Promise<ProgressWeight[]>;
   listProgressMeasurements(): Promise<ProgressMeasurement[]>;
   listPerformanceRecords(): Promise<PerformanceRecord[]>;
+  getTodayWorkoutCheckin(assignmentId: string): Promise<WorkoutCheckin | null>;
+  getWorkoutCheckinSummary(): Promise<WorkoutCheckinSummary>;
   listProgressPhotos(): Promise<ProgressPhoto[]>;
 }
 
 type ContentRow = Record<string, unknown>;
 type AssignmentScheduleRow = { weekday: number; schedule_kind: string };
 
-const saoPauloDate = () => {
+export const saoPauloDate = () => {
   const parts = new Intl.DateTimeFormat("en-US", {
     timeZone: "America/Sao_Paulo", year: "numeric", month: "2-digit", day: "2-digit",
   }).formatToParts(new Date());
@@ -36,6 +38,14 @@ const saoPauloDate = () => {
 // from the already time-zone-aware calendar date instead of the server's UTC
 // clock, which can otherwise select the wrong schedule around midnight.
 export const saoPauloWeekday = () => (new Date(`${saoPauloDate()}T12:00:00Z`).getUTCDay() + 6) % 7;
+
+const saoPauloWeekStart = () => {
+  const today = saoPauloDate();
+  const weekday = saoPauloWeekday();
+  const monday = new Date(`${today}T12:00:00Z`);
+  monday.setUTCDate(monday.getUTCDate() - weekday);
+  return monday.toISOString().slice(0, 10);
+};
 
 export const isScheduledWorkout = (schedule: AssignmentScheduleRow[] | null | undefined, weekday: number) =>
   (schedule ?? []).some((item) => item.weekday === weekday && item.schedule_kind === "WORKOUT");
@@ -73,6 +83,15 @@ const toVideo = (row: ContentRow): WorkoutVideo => ({
   providerVideoId: row.provider_video_id as string, title: row.title as string,
   thumbnailUrl: (row.thumbnail_url as string | null) ?? null, durationSeconds: (row.duration_seconds as number | null) ?? null,
   type: (row.type as string | null) ?? null, isActive: row.is_active as boolean,
+});
+
+const toWorkoutCheckin = (row: ContentRow): WorkoutCheckin => ({
+  id: String(row.id),
+  assignmentId: String(row.assignment_id),
+  workoutId: String(row.workout_id),
+  workoutName: ((row.workout as ContentRow | null)?.name as string | null) ?? null,
+  completedDate: String(row.completed_date),
+  completedAt: String(row.completed_at),
 });
 
 export function createContentRepository(client: SupabaseClient, resolveOwner?: () => Promise<string>): ContentRepository {
@@ -126,7 +145,7 @@ export function createContentRepository(client: SupabaseClient, resolveOwner?: (
       const today = saoPauloDate();
       const { data, error } = await client
         .from("workout_assignments")
-        .select("workout:workouts(*,cover_asset:media_assets(bucket,path)),schedule:workout_assignment_schedule(weekday,schedule_kind)")
+        .select("id,workout:workouts(*,cover_asset:media_assets(bucket,path)),schedule:workout_assignment_schedule(weekday,schedule_kind)")
         .eq("client_id", owner)
         .eq("is_active", true)
         .lte("starts_on", today)
@@ -221,6 +240,30 @@ export function createContentRepository(client: SupabaseClient, resolveOwner?: (
     async listPerformanceRecords() {
       const { data, error } = await client.from("performance_records").select("id,metric,value,unit,recorded_at").eq("client_id", await ownClientId()).order("recorded_at", { ascending: false }); if (error) throw error;
       return ((data ?? []) as ContentRow[]).map((row) => ({ id: row.id as string, metric: row.metric as string, value: row.value == null ? null : Number(row.value), unit: (row.unit as string | null) ?? null, recordedAt: row.recorded_at as string }));
+    },
+    async getTodayWorkoutCheckin(assignmentId) {
+      const { data, error } = await client
+        .from("workout_checkins")
+        .select("id,assignment_id,workout_id,completed_date,completed_at,workout:workouts(name)")
+        .eq("client_id", await ownClientId())
+        .eq("assignment_id", assignmentId)
+        .eq("completed_date", saoPauloDate())
+        .maybeSingle();
+      if (error) throw error;
+      return data ? toWorkoutCheckin(data as ContentRow) : null;
+    },
+    async getWorkoutCheckinSummary() {
+      const owner = await ownClientId();
+      const [totalResult, weekResult, recentResult] = await Promise.all([
+        client.from("workout_checkins").select("id", { count: "exact", head: true }).eq("client_id", owner),
+        client.from("workout_checkins").select("id", { count: "exact", head: true }).eq("client_id", owner).gte("completed_date", saoPauloWeekStart()),
+        client.from("workout_checkins").select("id,assignment_id,workout_id,completed_date,completed_at,workout:workouts(name)").eq("client_id", owner).order("completed_at", { ascending: false }).limit(12),
+      ]);
+      if (totalResult.error) throw totalResult.error;
+      if (weekResult.error) throw weekResult.error;
+      if (recentResult.error) throw recentResult.error;
+      const recent = ((recentResult.data ?? []) as ContentRow[]).map(toWorkoutCheckin);
+      return { total: totalResult.count ?? 0, thisWeek: weekResult.count ?? 0, last: recent[0] ?? null, recent };
     },
     async listProgressPhotos() {
       const { data, error } = await client.from("progress_photos").select("id,asset_id,category,recorded_at, asset:media_assets(bucket,path)").eq("client_id", await ownClientId()).order("recorded_at", { ascending: false });

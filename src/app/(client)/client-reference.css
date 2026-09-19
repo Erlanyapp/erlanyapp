@@ -73,6 +73,7 @@
 .client-viewport .home-daily-card h2 { margin: 0 0 12px; color: #322136; font: 700 clamp(18px, 5vw, 22px)/1.25 var(--client-font-display); overflow-wrap: anywhere; }
 .client-viewport .home-daily-description { margin: 0; max-width: 23ch; color: #756479; font: 400 14px/1.5 var(--client-font-body); }
 .client-viewport .home-daily-copy .button { margin-top: 22px; min-height: 44px; padding: 11px 18px; font-size: 13px; max-width: 100%; text-align: center; }
+.client-viewport .home-daily-actions { display:flex; gap:8px; margin-top:22px; min-width:0; }.client-viewport .home-daily-actions .button,.client-viewport .home-daily-actions>a { flex:1; margin-top:0; padding-inline:10px; white-space:nowrap; }.client-viewport .home-checkin-form { flex:1; min-width:0; }.client-viewport .home-checkin-form .button { width:100%; }.client-viewport .home-checkin-feedback { display:block; min-height:0; margin-top:6px; color:#68516d; font-size:11px; line-height:1.3; text-align:center; }.client-viewport .home-checkin-form:has(.button[disabled]) .button { opacity:.78; }
 .client-viewport .home-daily-link { display: inline-flex; align-items: center; gap: 6px; margin-top: 16px; min-height: 44px; color: #80388f; font-size: 13px; font-weight: 700; }
 .client-viewport .home-daily-mark { position: absolute; right: 15px; bottom: 30px; color: #ba90be; opacity: .42; transform: rotate(-18deg); pointer-events: none; }
 .client-viewport .home-body { display: grid; gap: 20px; padding: 18px max(16px, env(safe-area-inset-right)) 24px max(16px, env(safe-area-inset-left)); }
@@ -160,6 +161,7 @@
 .client-viewport .progress-encouragement p { margin: 8px 0 0; color: #795a7f; font-size: 13px; line-height: 1.5; }
 .client-viewport .progress-encouragement+.action-details { padding: 0; background: none; box-shadow: none; }
 .client-viewport .progress-encouragement+.action-details>summary { display: flex; align-items: center; justify-content: center; min-height: 48px; border-radius: 999px; background: #93479f; color: #fff; font-size: 14px; font-weight: 500; }
+.client-viewport .workout-checkin-summary { display:grid; gap:14px; }.client-viewport .workout-checkin-summary h2 { margin:0; color:#49304f; font-size:18px; }.client-viewport .workout-checkin-history { display:grid; gap:8px; margin:0; padding:0; list-style:none; }.client-viewport .workout-checkin-history li { display:flex; justify-content:space-between; gap:12px; padding-top:8px; border-top:1px solid #eee2ef; color:#5e4663; font-size:13px; }.client-viewport .workout-checkin-history span { flex:none; color:#8b758f; }
 @media (max-width: 360px) {
   .client-viewport .home-hero .app-header { padding-inline: 16px; min-height: 106px; }
   .client-viewport .home-greeting .profile-avatar { width: 48px; height: 48px; flex-basis: 48px; }

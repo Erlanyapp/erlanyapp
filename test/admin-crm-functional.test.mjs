@@ -74,7 +74,7 @@ test("creation service forwards only validated fields and propagates function fa
 function records({tables={},error=null,rangeError=null,signError=null}={}) {
   const calls=[];
   const client={from(table){let head=false;const q={
-    select(...args){head=!!args[1]?.head;calls.push([table,"select",...args]);return q;},eq(...args){calls.push([table,"eq",...args]);return q;},
+    select(...args){head=!!args[1]?.head;calls.push([table,"select",...args]);return q;},eq(...args){calls.push([table,"eq",...args]);return q;},gte(...args){calls.push([table,"gte",...args]);return q;},
     order(...args){calls.push([table,"order",...args]);return q;},range(...args){calls.push([table,"range",...args]);return q;},
     then(resolve,reject){return Promise.resolve({data:head?null:tables[table]??[],error:error??(!head?rangeError:null),count:!head&&rangeError?null:(tables[table]??[]).length}).then(resolve,reject);}};return q;},
     storage:{from:bucket=>({createSignedUrl:async (...args)=>{calls.push([bucket,"sign",...args]);return {data:signError?null:{signedUrl:"private-unit-signed"},error:signError};}})}};
@@ -88,7 +88,7 @@ test("all five tabs query only target client and perform bounded database pagina
       assert.ok(i.calls.some(x=>x[0]===table&&x[1]==="range"&&x[2]===20&&x[3]===39));
     }
     if(["alimentacao","midia"].includes(tab))assert.ok(i.calls.some(x=>x[1]==="eq"&&x[2]==="scope"&&x[3]==="CLIENT"));
-    for(const group of data.groups){assert.equal(group.records.length,0);assert.equal(group.total,0);assert.ok(group.empty);}
+    for(const group of data.groups){assert.equal(group.total,0);assert.ok(group.empty);if(group.title==="Treinos concluídos")assert.equal(group.records.length,1);else assert.equal(group.records.length,0);}
   }
 });
 test("real field mappings preserve recorded weight and do not fabricate absent fields",async()=>{

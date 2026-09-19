@@ -14,7 +14,6 @@ const weekdays = [
 
 export default async function WorkoutsPage({ searchParams }: { searchParams: Promise<{ tab?: string; category?: string; q?: string }> }) {
   const filters = await searchParams;
-  const tab = filters.tab === "Meus treinos" ? "Meus treinos" : "Categorias";
   const service = await getContentService();
   if (!service) return <><PageHeader title="Treinos" back /><ContentError label="seus treinos" /></>;
 
@@ -23,6 +22,7 @@ export default async function WorkoutsPage({ searchParams }: { searchParams: Pro
       service.listWorkouts(),
       service.listAssignedWorkoutSchedule(),
     ]);
+    const tab = filters.tab === "Categorias" ? "Categorias" : "Meus treinos";
     const all = [...global, ...assignedSchedule.filter((item) => !global.some((globalItem) => globalItem.id === item.id))];
     const categories = [...new Set(all.map((item) => item.category).filter((item): item is string => !!item))];
     const matchesFilters = (workout: { name: string; category: string | null }) =>
