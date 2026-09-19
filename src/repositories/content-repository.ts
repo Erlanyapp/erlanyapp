@@ -215,14 +215,14 @@ export function createContentRepository(client: SupabaseClient, resolveOwner?: (
         : null;
     },
     async listNutritionPlans() {
-      const { data, error } = await client.from("nutrition_plans").select("*").or(await contentScope()).order("name");
+      const { data, error } = await client.from("nutrition_plans").select("*").eq("is_active", true).order("name");
       if (error) throw error;
-      return ((data ?? []) as ContentRow[]).map((row) => ({ ...scoped(row), id: row.id as string, name: row.name as string, description: (row.description as string | null) ?? null, createdAt: row.created_at as string }));
+      return ((data ?? []) as ContentRow[]).map((row) => ({ ...scoped(row), id: row.id as string, name: row.name as string, description: (row.description as string | null) ?? null, objective: (row.objective as string | null) ?? null, notes: (row.notes as string | null) ?? null, isActive: row.is_active !== false, createdAt: row.created_at as string }));
     },
     async listNutritionMeals(planId) {
-      const { data, error } = await client.from("nutrition_meals").select("*").or(await contentScope()).eq("nutrition_plan_id", planId).order("meal_order");
+      const { data, error } = await client.from("nutrition_meals").select("*,recipe:recipes(id,name),items:nutrition_meal_items(id,food_name,quantity,unit,notes,item_order)").eq("nutrition_plan_id", planId).order("meal_time").order("meal_order");
       if (error) throw error;
-      return ((data ?? []) as ContentRow[]).map((row) => ({ ...scoped(row), id: row.id as string, nutritionPlanId: row.nutrition_plan_id as string, name: row.name as string, mealOrder: row.meal_order as number, guidance: (row.guidance as string | null) ?? null, recipeId: (row.recipe_id as string | null) ?? null }));
+      return ((data ?? []) as ContentRow[]).map((row) => { const recipe = row.recipe as ContentRow | null; const items = Array.isArray(row.items) ? row.items as ContentRow[] : []; return { ...scoped(row), id: row.id as string, nutritionPlanId: row.nutrition_plan_id as string, name: row.name as string, mealOrder: row.meal_order as number, mealTime: (row.meal_time as string | null) ?? null, description: (row.description as string | null) ?? null, guidance: (row.guidance as string | null) ?? null, recipeId: (row.recipe_id as string | null) ?? null, recipeName: (recipe?.name as string | null) ?? null, items: items.sort((left, right) => Number(left.item_order) - Number(right.item_order)).map((item) => ({ id: String(item.id), foodName: String(item.food_name), quantity: item.quantity == null ? null : Number(item.quantity), unit: (item.unit as string | null) ?? null, notes: (item.notes as string | null) ?? null, itemOrder: Number(item.item_order) })) }; });
     },
     async listRecipes() {
       const { data, error } = await client.from("recipes").select("id,name,description,ingredients,instructions,recipe_ingredients(name,quantity,ingredient_order)").or(await contentScope()).order("name");

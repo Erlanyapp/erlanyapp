@@ -50,8 +50,11 @@ export function createAdminClientRecordsRepository(client:SupabaseClient) {
           ["Nível",text(workout.level)],["Duração",workout.duration_minutes===null?null:`${number(workout.duration_minutes)} min`],
         ])}})];
       } else if(tab==="alimentacao") {
-        const result=await read("nutrition_plans","id,name,description,created_at,updated_at",id,page,"updated_at",true);
-        groups=[group("Planos alimentares individuais","Nenhum plano alimentar atribuído.",result,row=>base(row,String(row.name)))];
+        const result=await read("nutrition_assignments","id,starts_on,ends_on,is_active,notes,created_at,updated_at,nutrition_plan:nutrition_plans(id,name,description,objective)",id,page,"updated_at");
+        groups=[group("Planos alimentares atribuídos","Nenhum plano alimentar atribuído.",result,row=>{const plan=object(row.nutrition_plan);return {...base(row,text(plan.name)??"Plano alimentar atribuído"),description:text(plan.description),fields:fields([
+          ["Objetivo",text(plan.objective)], ["Situação",row.is_active?"Ativa":"Inativa"],
+          ["Início",text(row.starts_on)], ["Fim",text(row.ends_on)??"Sem fim"], ["Observações",text(row.notes)],
+        ])};})];
       } else if(tab==="evolucao") {
         const [weights,measurements,performance,photos,workoutCheckins,weekWorkoutCheckins]=await Promise.all([
           read("progress_weights","id,value,recorded_at,created_at",id,page,"recorded_at"),

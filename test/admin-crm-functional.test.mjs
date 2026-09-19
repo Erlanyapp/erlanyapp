@@ -87,7 +87,7 @@ test("all five tabs query only target client and perform bounded database pagina
       assert.ok(i.calls.some(x=>x[0]===table&&x[1]==="eq"&&x[2]===(table==="audit_logs"?"entity_id":"client_id")&&x[3]===id));
       assert.ok(i.calls.some(x=>x[0]===table&&x[1]==="range"&&x[2]===20&&x[3]===39));
     }
-    if(["alimentacao","midia"].includes(tab))assert.ok(i.calls.some(x=>x[1]==="eq"&&x[2]==="scope"&&x[3]==="CLIENT"));
+    if(tab==="midia")assert.ok(i.calls.some(x=>x[1]==="eq"&&x[2]==="scope"&&x[3]==="CLIENT"));
     for(const group of data.groups){assert.equal(group.total,0);assert.ok(group.empty);if(group.title==="Treinos concluídos")assert.equal(group.records.length,1);else assert.equal(group.records.length,0);}
   }
 });

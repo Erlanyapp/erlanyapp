@@ -101,14 +101,21 @@ export interface NutritionMeal extends ScopedContent {
   nutritionPlanId: string;
   name: string;
   mealOrder: number;
+  mealTime: string | null;
+  description: string | null;
   guidance: string | null;
   recipeId: string | null;
+  recipeName?: string | null;
+  items: Array<{ id: string; foodName: string; quantity: number | null; unit: string | null; notes: string | null; itemOrder: number }>;
 }
 
 export interface NutritionPlan extends ScopedContent {
   id: string;
   name: string;
   description: string | null;
+  objective: string | null;
+  notes: string | null;
+  isActive: boolean;
   createdAt: string;
 }
 

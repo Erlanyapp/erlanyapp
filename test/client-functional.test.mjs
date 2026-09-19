@@ -118,11 +118,13 @@ test("all progress reads explicitly use authenticated ownership, including ADMIN
   for(const table of ["progress_weights","progress_measurements","progress_photos","performance_records"])assert.ok(infra.calls.some(call=>JSON.stringify(call)===JSON.stringify([table,"eq","client_id","client-a"])));
   assert.equal(infra.authCalls(),1);
 });
-test("workouts expose only published GLOBAL content outside assignment availability, while other content remains client-scoped",async()=>{
+test("workouts expose only published GLOBAL content outside assignment availability, while nutrition is released by active-plan RLS",async()=>{
   const infra=infrastructure({clients:[{id:"client-a"}]});const repository=createContentRepository(infra.client);
   await Promise.all([repository.listWorkouts(),repository.listExercises(),repository.listVideos(),repository.listTips(),repository.listNutritionPlans(),repository.listRecipes(),repository.listNutritionMeals("plan-a")]);
   assert.ok(infra.calls.some(call=>JSON.stringify(call)===JSON.stringify(["workouts","eq","scope","GLOBAL"])));
-  for(const table of ["exercises","videos","tips","nutrition_plans","recipes","nutrition_meals"])assert.ok(infra.calls.some(call=>JSON.stringify(call)===JSON.stringify([table,"or","scope.eq.GLOBAL,and(scope.eq.CLIENT,client_id.eq.client-a)"])));
+  for(const table of ["exercises","videos","tips","recipes"])assert.ok(infra.calls.some(call=>JSON.stringify(call)===JSON.stringify([table,"or","scope.eq.GLOBAL,and(scope.eq.CLIENT,client_id.eq.client-a)"])));
+  assert.ok(infra.calls.some(call=>JSON.stringify(call)===JSON.stringify(["nutrition_plans","eq","is_active",true])));
+  assert.ok(infra.calls.some(call=>JSON.stringify(call)===JSON.stringify(["nutrition_meals","eq","nutrition_plan_id","plan-a"])));
 });
 test("daily workout resolves only the authenticated client's active, in-period weekly WORKOUT assignment", async () => {
   const parts = new Intl.DateTimeFormat("en-US", { timeZone: "America/Sao_Paulo", weekday: "short" }).format(new Date()).toLowerCase();

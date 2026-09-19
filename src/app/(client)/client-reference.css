@@ -162,6 +162,7 @@
 .client-viewport .progress-encouragement+.action-details { padding: 0; background: none; box-shadow: none; }
 .client-viewport .progress-encouragement+.action-details>summary { display: flex; align-items: center; justify-content: center; min-height: 48px; border-radius: 999px; background: #93479f; color: #fff; font-size: 14px; font-weight: 500; }
 .client-viewport .workout-checkin-summary { display:grid; gap:14px; }.client-viewport .workout-checkin-summary h2 { margin:0; color:#49304f; font-size:18px; }.client-viewport .workout-checkin-history { display:grid; gap:8px; margin:0; padding:0; list-style:none; }.client-viewport .workout-checkin-history li { display:flex; justify-content:space-between; gap:12px; padding-top:8px; border-top:1px solid #eee2ef; color:#5e4663; font-size:13px; }.client-viewport .workout-checkin-history span { flex:none; color:#8b758f; }
+.client-viewport .meal-row header { display:flex;align-items:baseline;justify-content:space-between;gap:12px; }.client-viewport .meal-row header span { color:#7e6484;font-size:13px;font-weight:700;white-space:nowrap; }.client-viewport .meal-food-items { display:grid;gap:6px;margin:12px 0;padding-left:18px;color:#5e4663;font-size:13px;line-height:1.45; }
 @media (max-width: 360px) {
   .client-viewport .home-hero .app-header { padding-inline: 16px; min-height: 106px; }
   .client-viewport .home-greeting .profile-avatar { width: 48px; height: 48px; flex-basis: 48px; }
