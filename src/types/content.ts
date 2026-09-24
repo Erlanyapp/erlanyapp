@@ -123,7 +123,9 @@ export interface Recipe {
   id: string;
   name: string;
   description: string | null;
-  ingredients: Array<{ name: string; quantity?: string }>;
+  imageAssetId: string | null;
+  imageUrl?: string | null;
+  ingredients: Array<{ name: string; quantity?: string; unit?: string | null; notes?: string | null }>;
   instructions: string | null;
 }
 

@@ -24,6 +24,7 @@ export interface ContentRepository {
 }
 
 type ContentRow = Record<string, unknown>;
+const isMissingStorageObject = (error: unknown) => typeof error === "object" && error !== null && "code" in error && (error as { code?: unknown }).code === "NoSuchKey";
 type AssignmentScheduleRow = { weekday: number; schedule_kind: string };
 
 export const saoPauloDate = () => {
@@ -113,6 +114,9 @@ export function createContentRepository(client: SupabaseClient, resolveOwner?: (
     const key = JSON.stringify([asset.bucket, asset.path]);
     if (!signedAssets.has(key)) signedAssets.set(key, (async () => {
     const { data, error } = await client.storage.from(asset.bucket as string).createSignedUrl(asset.path as string, 3600);
+    // Legacy media metadata can outlive a private Storage object. A missing
+    // optional cover must not prevent the client from reading released content.
+    if (isMissingStorageObject(error)) return null;
     if (error) throw error;
     return data?.signedUrl ?? null;
     })());
@@ -225,9 +229,9 @@ export function createContentRepository(client: SupabaseClient, resolveOwner?: (
       return ((data ?? []) as ContentRow[]).map((row) => { const recipe = row.recipe as ContentRow | null; const items = Array.isArray(row.items) ? row.items as ContentRow[] : []; return { ...scoped(row), id: row.id as string, nutritionPlanId: row.nutrition_plan_id as string, name: row.name as string, mealOrder: row.meal_order as number, mealTime: (row.meal_time as string | null) ?? null, description: (row.description as string | null) ?? null, guidance: (row.guidance as string | null) ?? null, recipeId: (row.recipe_id as string | null) ?? null, recipeName: (recipe?.name as string | null) ?? null, items: items.sort((left, right) => Number(left.item_order) - Number(right.item_order)).map((item) => ({ id: String(item.id), foodName: String(item.food_name), quantity: item.quantity == null ? null : Number(item.quantity), unit: (item.unit as string | null) ?? null, notes: (item.notes as string | null) ?? null, itemOrder: Number(item.item_order) })) }; });
     },
     async listRecipes() {
-      const { data, error } = await client.from("recipes").select("id,name,description,ingredients,instructions,recipe_ingredients(name,quantity,ingredient_order)").or(await contentScope()).order("name");
+      const { data, error } = await client.from("recipes").select("id,name,description,ingredients,instructions,image_asset_id,image_asset:media_assets(bucket,path),recipe_ingredients(name,quantity,unit,notes,ingredient_order)").or(await contentScope()).eq("is_active", true).order("name");
       if (error) throw error;
-      return ((data ?? []) as ContentRow[]).map((row) => ({ id: row.id as string, name: row.name as string, description: (row.description as string | null) ?? null, ingredients: Array.isArray(row.recipe_ingredients) && row.recipe_ingredients.length ? (row.recipe_ingredients as { name: string; quantity?: string; ingredient_order: number }[]).sort((a,b) => a.ingredient_order - b.ingredient_order).map(({ name, quantity }) => ({ name, quantity })) : Array.isArray(row.ingredients) ? row.ingredients as Recipe["ingredients"] : [], instructions: (row.instructions as string | null) ?? null }));
+      return Promise.all(((data ?? []) as ContentRow[]).map(async (row) => ({ id: row.id as string, name: row.name as string, description: (row.description as string | null) ?? null, imageAssetId: (row.image_asset_id as string | null) ?? null, imageUrl: await signedAssetUrl(row.image_asset as ContentRow | null), ingredients: Array.isArray(row.recipe_ingredients) && row.recipe_ingredients.length ? (row.recipe_ingredients as { name: string; quantity?: string; unit?: string | null; notes?: string | null; ingredient_order: number }[]).sort((a,b) => a.ingredient_order - b.ingredient_order).map(({ name, quantity, unit, notes }) => ({ name, quantity, ...(unit ? { unit } : {}), ...(notes ? { notes } : {}) })) : Array.isArray(row.ingredients) ? row.ingredients as Recipe["ingredients"] : [], instructions: (row.instructions as string | null) ?? null })));
     },
     async listProgressWeights() {
       const { data, error } = await client.from("progress_weights").select("id,value,recorded_at").eq("client_id", await ownClientId()).order("recorded_at", { ascending: false }); if (error) throw error;
