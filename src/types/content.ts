@@ -129,9 +129,10 @@ export interface Recipe {
   instructions: string | null;
 }
 
-export interface ProgressWeight { id: string; value: number; recordedAt: string; }
-export interface ProgressMeasurement { id: string; measurements: Record<string, unknown>; recordedAt: string; }
-export interface PerformanceRecord { id: string; metric: string; value: number | null; unit: string | null; recordedAt: string; }
+export interface ProgressAssessment { id: string; assessedAt: string; notes: string | null; }
+export interface ProgressWeight { id: string; assessmentId: string | null; value: number; recordedAt: string; }
+export interface ProgressMeasurement { id: string; assessmentId: string | null; measurements: Record<string, unknown>; recordedAt: string; }
+export interface PerformanceRecord { id: string; assessmentId: string | null; metric: string; value: number | null; unit: string | null; recordedAt: string; }
 
 export interface WorkoutCheckin {
   id: string;
@@ -152,6 +153,7 @@ export interface WorkoutCheckinSummary {
 export interface ProgressPhoto {
   id: string;
   assetId: string | null;
+  assessmentId: string | null;
   category: string | null;
   recordedAt: string;
   imageUrl?: string | null;

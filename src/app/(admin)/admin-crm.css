@@ -77,9 +77,15 @@
 .admin-viewport .admin-pagination a { padding:10px 14px; background:#fff; border:1px solid #e5d6e9; border-radius:8px; }
 .admin-viewport .crm-client-header { display:flex; align-items:center; gap:24px; padding:28px; border:1px solid #e7dbea; border-radius:14px; background:#fff; }
 .admin-viewport .crm-client-header>.profile-avatar { position:relative; display:flex; flex:0 0 84px; width:84px; height:84px; border-radius:50%; overflow:hidden; align-items:center; justify-content:center; background:#f1e5f4; color:var(--primary-dark); font-size:25px; }
-.admin-viewport .crm-client-identity { min-width:0; flex:1; }
+.admin-viewport .crm-client-identity { min-width:0; flex:1 1 240px; }
+.admin-viewport .crm-client-header>.button { flex-shrink:0; }
 .admin-viewport .crm-client-identity h2 { margin:8px 0; font:400 28px Georgia,serif; color:var(--primary-dark); overflow-wrap:anywhere; }
 .admin-viewport .crm-client-identity>p:not(.admin-overline) { font-size:13px; color:var(--text-muted); margin:0 0 12px; overflow-wrap:anywhere; }
+@media (max-width:600px) {
+  .admin-viewport .crm-client-header { align-items:flex-start; }
+  .admin-viewport .crm-client-identity { flex-basis:100%; width:100%; }
+  .admin-viewport .crm-client-identity h2 { overflow-wrap:break-word; word-break:normal; }
+}
 .admin-viewport .crm-client-meta { display:flex; flex-wrap:wrap; gap:10px 20px; align-items:center; font-size:11px; color:var(--text-muted); }
 .admin-viewport .crm-tabs { display:flex; max-width:100%; gap:24px; margin:28px 0; border-bottom:1px solid #e2d5e7; overflow-x:auto; }
 .admin-viewport .crm-tabs a { flex:none; padding:14px 0; color:var(--text-muted); font-size:13px; border-bottom:3px solid transparent; }
@@ -198,3 +204,40 @@
 .admin-viewport .nutrition-week-grid input { width:auto;min-height:auto; }
 @media (max-width:1000px) { .admin-viewport .nutrition-food-row { grid-template-columns:minmax(130px,1fr) 86px 100px minmax(120px,1fr); }.admin-viewport .nutrition-food-row .workout-danger-link { grid-column:1/-1;justify-self:start; }.admin-viewport .nutrition-week-grid { grid-template-columns:repeat(4,minmax(0,1fr)); } }
 @media (max-width:600px) { .admin-viewport .nutrition-food-row { grid-template-columns:1fr 92px; }.admin-viewport .nutrition-week-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }.admin-viewport .nutrition-meal-card ul { grid-column:1/-1; } }
+
+/* Fase 4.7 — evolução física: dados sensíveis de um único cliente. */
+.admin-viewport .crm-progress-panel { display:grid; gap:26px; }
+.admin-viewport .crm-progress-panel .crm-section-heading { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; }
+.admin-viewport .crm-progress-summary { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:14px; }
+.admin-viewport .crm-progress-summary .crm-metric { min-height:104px; padding:18px; }
+.admin-viewport .crm-progress-summary .crm-metric span { display:block; margin-top:8px; color:var(--text-muted); font-size:11px; line-height:1.4; }
+.admin-viewport .crm-inline-details { position:relative; }
+.admin-viewport .crm-inline-details>summary { list-style:none; cursor:pointer; }
+.admin-viewport .crm-inline-details>summary::-webkit-details-marker { display:none; }
+.admin-viewport .crm-inline-details[open]>summary { margin-bottom:14px; }
+.admin-viewport .crm-progress-form { display:grid; gap:14px; max-width:880px; padding:18px; border:1px solid #e8ddec; border-radius:12px; background:#fcf9fd; }
+.admin-viewport .crm-progress-form label { display:grid; gap:7px; min-width:0; color:var(--text-muted); font-size:11px; font-weight:600; }
+.admin-viewport .crm-progress-form :is(input,select,textarea) { width:100%; min-width:0; min-height:42px; padding:9px 10px; border:1px solid #e3d8e8; border-radius:8px; background:#fff; color:var(--text); font:13px Arial,sans-serif; }
+.admin-viewport .crm-progress-form textarea { min-height:102px; resize:vertical; }
+.admin-viewport .crm-progress-form small { color:var(--text-muted); font-size:11px; font-weight:400; line-height:1.45; }
+.admin-viewport .crm-progress-form-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; }
+.admin-viewport .crm-progress-measures { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; }
+.admin-viewport .crm-progress-actions { display:flex; flex-wrap:wrap; align-items:center; gap:12px; }
+.admin-viewport .crm-feedback { margin:0; color:#397553; font-size:12px; }
+.admin-viewport .crm-progress-list { display:grid; gap:10px; }
+.admin-viewport .crm-progress-record { padding:0; overflow:hidden; }
+.admin-viewport .crm-progress-record>summary { display:flex; align-items:center; justify-content:space-between; gap:14px; padding:16px 18px; cursor:pointer; list-style:none; }
+.admin-viewport .crm-progress-record>summary::-webkit-details-marker { display:none; }
+.admin-viewport .crm-progress-record>summary strong,.admin-viewport .crm-progress-record>summary small { display:block; }
+.admin-viewport .crm-progress-record>summary strong { color:var(--primary-dark); font-size:13px; }
+.admin-viewport .crm-progress-record>summary small { margin-top:4px; color:var(--text-muted); font-size:11px; }
+.admin-viewport .crm-progress-record>summary>span:last-child { color:var(--primary); font-size:12px; font-weight:700; }
+.admin-viewport .crm-progress-record>.crm-progress-form,.admin-viewport .crm-progress-record>form { margin:0 18px 18px; }
+.admin-viewport .crm-progress-photos { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:14px; }
+.admin-viewport .crm-progress-photo { display:grid; align-content:start; gap:9px; min-width:0; padding:14px; }
+.admin-viewport .crm-progress-photo img { width:100%; height:210px; border-radius:8px; object-fit:cover; background:#f5edf6; }
+.admin-viewport .crm-progress-photo strong { color:var(--primary-dark); font-size:13px; overflow-wrap:anywhere; }
+.admin-viewport .crm-progress-photo small { color:var(--text-muted); font-size:11px; }
+.admin-viewport .crm-progress-photo .crm-inline-details>summary { display:inline-flex; }
+@media (max-width:1000px) { .admin-viewport .crm-progress-summary { grid-template-columns:repeat(2,minmax(0,1fr)); }.admin-viewport .crm-progress-photos { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+@media (max-width:640px) { .admin-viewport .crm-progress-panel .crm-section-heading { display:grid; }.admin-viewport .crm-progress-summary,.admin-viewport .crm-progress-form-grid,.admin-viewport .crm-progress-measures,.admin-viewport .crm-progress-photos { grid-template-columns:1fr; }.admin-viewport .crm-progress-form { padding:14px; }.admin-viewport .crm-progress-actions .button { width:100%; justify-content:center; }.admin-viewport .crm-progress-photo img { height:auto; max-height:420px; } }

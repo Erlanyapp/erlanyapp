@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { AssignedWorkout, Exercise, PerformanceRecord, ProgressMeasurement, ProgressPhoto, ProgressWeight, Recipe, Tip, Workout, WorkoutCheckin, WorkoutCheckinSummary, WorkoutExercise, WorkoutVideo, NutritionMeal, NutritionPlan } from "@/types/content";
+import type { AssignedWorkout, Exercise, PerformanceRecord, ProgressAssessment, ProgressMeasurement, ProgressPhoto, ProgressWeight, Recipe, Tip, Workout, WorkoutCheckin, WorkoutCheckinSummary, WorkoutExercise, WorkoutVideo, NutritionMeal, NutritionPlan } from "@/types/content";
 
 export interface ContentRepository {
   listExercises(): Promise<Exercise[]>;
@@ -16,6 +16,7 @@ export interface ContentRepository {
   listNutritionMeals(planId: string): Promise<NutritionMeal[]>;
   listRecipes(): Promise<Recipe[]>;
   listProgressWeights(): Promise<ProgressWeight[]>;
+  listProgressAssessments(): Promise<ProgressAssessment[]>;
   listProgressMeasurements(): Promise<ProgressMeasurement[]>;
   listPerformanceRecords(): Promise<PerformanceRecord[]>;
   getTodayWorkoutCheckin(assignmentId: string): Promise<WorkoutCheckin | null>;
@@ -234,16 +235,20 @@ export function createContentRepository(client: SupabaseClient, resolveOwner?: (
       return Promise.all(((data ?? []) as ContentRow[]).map(async (row) => ({ id: row.id as string, name: row.name as string, description: (row.description as string | null) ?? null, imageAssetId: (row.image_asset_id as string | null) ?? null, imageUrl: await signedAssetUrl(row.image_asset as ContentRow | null), ingredients: Array.isArray(row.recipe_ingredients) && row.recipe_ingredients.length ? (row.recipe_ingredients as { name: string; quantity?: string; unit?: string | null; notes?: string | null; ingredient_order: number }[]).sort((a,b) => a.ingredient_order - b.ingredient_order).map(({ name, quantity, unit, notes }) => ({ name, quantity, ...(unit ? { unit } : {}), ...(notes ? { notes } : {}) })) : Array.isArray(row.ingredients) ? row.ingredients as Recipe["ingredients"] : [], instructions: (row.instructions as string | null) ?? null })));
     },
     async listProgressWeights() {
-      const { data, error } = await client.from("progress_weights").select("id,value,recorded_at").eq("client_id", await ownClientId()).order("recorded_at", { ascending: false }); if (error) throw error;
-      return ((data ?? []) as ContentRow[]).map((row) => ({ id: row.id as string, value: Number(row.value), recordedAt: row.recorded_at as string }));
+      const { data, error } = await client.from("progress_weights").select("id,assessment_id,value,recorded_at").eq("client_id", await ownClientId()).order("recorded_at", { ascending: false }); if (error) throw error;
+      return ((data ?? []) as ContentRow[]).map((row) => ({ id: row.id as string, assessmentId: (row.assessment_id as string | null) ?? null, value: Number(row.value), recordedAt: row.recorded_at as string }));
+    },
+    async listProgressAssessments() {
+      const { data, error } = await client.from("progress_assessments").select("id,assessed_at,notes").eq("client_id", await ownClientId()).order("assessed_at", { ascending: false }).order("created_at", { ascending: false }); if (error) throw error;
+      return ((data ?? []) as ContentRow[]).map((row) => ({ id: String(row.id), assessedAt: String(row.assessed_at), notes: typeof row.notes === "string" ? row.notes : null }));
     },
     async listProgressMeasurements() {
-      const { data, error } = await client.from("progress_measurements").select("id,measurements,recorded_at").eq("client_id", await ownClientId()).order("recorded_at", { ascending: false }); if (error) throw error;
-      return ((data ?? []) as ContentRow[]).map((row) => ({ id: row.id as string, measurements: (row.measurements as Record<string, unknown>) ?? {}, recordedAt: row.recorded_at as string }));
+      const { data, error } = await client.from("progress_measurements").select("id,assessment_id,measurements,recorded_at").eq("client_id", await ownClientId()).order("recorded_at", { ascending: false }); if (error) throw error;
+      return ((data ?? []) as ContentRow[]).map((row) => ({ id: row.id as string, assessmentId: (row.assessment_id as string | null) ?? null, measurements: (row.measurements as Record<string, unknown>) ?? {}, recordedAt: row.recorded_at as string }));
     },
     async listPerformanceRecords() {
-      const { data, error } = await client.from("performance_records").select("id,metric,value,unit,recorded_at").eq("client_id", await ownClientId()).order("recorded_at", { ascending: false }); if (error) throw error;
-      return ((data ?? []) as ContentRow[]).map((row) => ({ id: row.id as string, metric: row.metric as string, value: row.value == null ? null : Number(row.value), unit: (row.unit as string | null) ?? null, recordedAt: row.recorded_at as string }));
+      const { data, error } = await client.from("performance_records").select("id,assessment_id,metric,value,unit,recorded_at").eq("client_id", await ownClientId()).order("recorded_at", { ascending: false }); if (error) throw error;
+      return ((data ?? []) as ContentRow[]).map((row) => ({ id: row.id as string, assessmentId: (row.assessment_id as string | null) ?? null, metric: row.metric as string, value: row.value == null ? null : Number(row.value), unit: (row.unit as string | null) ?? null, recordedAt: row.recorded_at as string }));
     },
     async getTodayWorkoutCheckin(assignmentId) {
       const { data, error } = await client
@@ -270,9 +275,9 @@ export function createContentRepository(client: SupabaseClient, resolveOwner?: (
       return { total: totalResult.count ?? 0, thisWeek: weekResult.count ?? 0, last: recent[0] ?? null, recent };
     },
     async listProgressPhotos() {
-      const { data, error } = await client.from("progress_photos").select("id,asset_id,category,recorded_at, asset:media_assets(bucket,path)").eq("client_id", await ownClientId()).order("recorded_at", { ascending: false });
+      const { data, error } = await client.from("progress_photos").select("id,asset_id,assessment_id,category,recorded_at, asset:media_assets(bucket,path)").eq("client_id", await ownClientId()).order("recorded_at", { ascending: false });
       if (error) throw error;
-      return Promise.all(((data ?? []) as ContentRow[]).map(async (row) => ({ id: row.id as string, assetId: (row.asset_id as string | null) ?? null, category: (row.category as string | null) ?? null, recordedAt: row.recorded_at as string, imageUrl: await signedAssetUrl(row.asset as ContentRow | null) })));
+      return Promise.all(((data ?? []) as ContentRow[]).map(async (row) => ({ id: row.id as string, assetId: (row.asset_id as string | null) ?? null, assessmentId: (row.assessment_id as string | null) ?? null, category: (row.category as string | null) ?? null, recordedAt: row.recorded_at as string, imageUrl: await signedAssetUrl(row.asset as ContentRow | null) })));
     },
     async listTips() {
       const { data, error } = await client.from("tips").select("*, category:tip_categories(name), image_asset:media_assets(bucket,path)").or(await contentScope()).eq("is_active", true).order("title");
