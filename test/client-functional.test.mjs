@@ -122,7 +122,10 @@ test("workouts expose only published GLOBAL content outside assignment availabil
   const infra=infrastructure({clients:[{id:"client-a"}]});const repository=createContentRepository(infra.client);
   await Promise.all([repository.listWorkouts(),repository.listExercises(),repository.listVideos(),repository.listTips(),repository.listNutritionPlans(),repository.listRecipes(),repository.listNutritionMeals("plan-a")]);
   assert.ok(infra.calls.some(call=>JSON.stringify(call)===JSON.stringify(["workouts","eq","scope","GLOBAL"])));
-  for(const table of ["exercises","videos","tips","recipes"])assert.ok(infra.calls.some(call=>JSON.stringify(call)===JSON.stringify([table,"or","scope.eq.GLOBAL,and(scope.eq.CLIENT,client_id.eq.client-a)"])));
+  for(const table of ["exercises","videos","tips"])assert.ok(infra.calls.some(call=>JSON.stringify(call)===JSON.stringify([table,"or","scope.eq.GLOBAL,and(scope.eq.CLIENT,client_id.eq.client-a)"])));
+  // Recipes can be released through an active nutrition assignment; their
+  // database policy is the authoritative GLOBAL/CLIENT filter.
+  assert.ok(infra.calls.some(call=>JSON.stringify(call)===JSON.stringify(["recipes","eq","is_active",true])));
   assert.ok(infra.calls.some(call=>JSON.stringify(call)===JSON.stringify(["nutrition_plans","eq","is_active",true])));
   assert.ok(infra.calls.some(call=>JSON.stringify(call)===JSON.stringify(["nutrition_meals","eq","nutrition_plan_id","plan-a"])));
 });
@@ -226,4 +229,25 @@ test("profile signs own path only and uses app_metadata, not editable metadata, 
 test("recipe ingredients reuse normalized relation with JSON fallback",async()=>{
   const infra=infrastructure({clients:[{id:"client-a"}],recipes:[{id:"r1",recipe_ingredients:[{name:"B",quantity:"2",ingredient_order:2},{name:"A",ingredient_order:1}],ingredients:[{name:"legacy"}]},{id:"r2",recipe_ingredients:[],ingredients:[{name:"legacy",quantity:"1"}]}]});
   const recipes=await createContentRepository(infra.client).listRecipes();assert.deepEqual(recipes[0].ingredients,[{name:"A",quantity:undefined},{name:"B",quantity:"2"}]);assert.deepEqual(recipes[1].ingredients,[{name:"legacy",quantity:"1"}]);
+});
+test("an optional recipe cover signing failure preserves authorized recipe content",async()=>{
+  const infra=infrastructure({clients:[{id:"client-a"}],recipes:[{id:"r1",name:"Receita",image_asset:{bucket:"images",path:"recipes/client-a/a.png"},recipe_ingredients:[{name:"Arroz",ingredient_order:0}]}]},new Error("Storage temporarily unavailable"));
+  const original=console.error;console.error=()=>{};
+  try { const recipes=await createContentRepository(infra.client).listRecipes();assert.equal(recipes.length,1);assert.equal(recipes[0].name,"Receita");assert.equal(recipes[0].imageUrl,null);assert.deepEqual(recipes[0].ingredients,[{name:"Arroz",quantity:undefined}]); }
+  finally { console.error=original; }
+});
+test("nutrition plans do not request the optional recipe library",async()=>{
+  const page=await source("src/app/(client)/app/alimentacao/page.tsx");
+  assert.match(page,/selected === "Receitas" \? \[\] : await service\.listNutritionPlans\(\)/);
+  assert.match(page,/selected === "Planos" \|\| selected === "Orientações" \? \[\] : await service\.listRecipes\(\)/);
+  assert.match(page,/meal\.recipeId && <Link/);
+});
+test("recipe detail resolves one owner-authorized recipe instead of timing out on the full library",async()=>{
+  const page=await source("src/app/(client)/app/alimentacao/receitas/[id]/page.tsx");
+  const repository=await source("src/repositories/content-repository.ts");
+  assert.match(page,/await service\.getRecipe\(id\)/);
+  assert.doesNotMatch(page,/service\.listRecipes\(\)\)\.find/);
+  assert.match(repository,/async getRecipe\(id\)[\s\S]*?\.eq\("id", id\)\.eq\("is_active", true\)\.maybeSingle\(\)/);
+  assert.match(repository,/from\("recipe_ingredients"\)\.select\("name,quantity,unit,notes,ingredient_order"\)\.eq\("recipe_id", id\)/);
+  assert.match(repository,/from\("media_assets"\)\.select\("bucket,path"\)\.eq\("id", row\.image_asset_id as string\)/);
 });

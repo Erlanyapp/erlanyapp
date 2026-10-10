@@ -15,6 +15,7 @@ export interface ContentRepository {
   listNutritionPlans(): Promise<NutritionPlan[]>;
   listNutritionMeals(planId: string): Promise<NutritionMeal[]>;
   listRecipes(): Promise<Recipe[]>;
+  getRecipe(id: string): Promise<Recipe | null>;
   listProgressWeights(): Promise<ProgressWeight[]>;
   listProgressAssessments(): Promise<ProgressAssessment[]>;
   listProgressMeasurements(): Promise<ProgressMeasurement[]>;
@@ -123,6 +124,30 @@ export function createContentRepository(client: SupabaseClient, resolveOwner?: (
     })());
     return signedAssets.get(key)!;
   };
+  // Editorial covers enrich the content but must never prevent an otherwise
+  // authorized recipe from loading. Keep the signing failure observable on the
+  // server while allowing the client to render the recipe without its cover.
+  const signedOptionalEditorialAssetUrl = async (asset: ContentRow | null | undefined): Promise<string | null> => {
+    try {
+      return await signedAssetUrl(asset);
+    } catch (error) {
+      console.error("Unable to sign optional editorial cover", error);
+      return null;
+    }
+  };
+  const toRecipe = async (row: ContentRow): Promise<Recipe> => ({
+    id: row.id as string,
+    name: row.name as string,
+    description: (row.description as string | null) ?? null,
+    imageAssetId: (row.image_asset_id as string | null) ?? null,
+    imageUrl: await signedOptionalEditorialAssetUrl(row.image_asset as ContentRow | null),
+    ingredients: Array.isArray(row.recipe_ingredients) && row.recipe_ingredients.length
+      ? (row.recipe_ingredients as { name: string; quantity?: string; unit?: string | null; notes?: string | null; ingredient_order: number }[])
+        .sort((a, b) => a.ingredient_order - b.ingredient_order)
+        .map(({ name, quantity, unit, notes }) => ({ name, quantity, ...(unit ? { unit } : {}), ...(notes ? { notes } : {}) }))
+      : Array.isArray(row.ingredients) ? row.ingredients as Recipe["ingredients"] : [],
+    instructions: (row.instructions as string | null) ?? null,
+  });
   const getWorkout = (id: string) => {
     if (!workouts.has(id)) workouts.set(id, (async () => {
       const { data, error } = await client.from("workouts").select("*").eq("id", id).eq("is_active", true).maybeSingle();
@@ -230,9 +255,30 @@ export function createContentRepository(client: SupabaseClient, resolveOwner?: (
       return ((data ?? []) as ContentRow[]).map((row) => { const recipe = row.recipe as ContentRow | null; const items = Array.isArray(row.items) ? row.items as ContentRow[] : []; return { ...scoped(row), id: row.id as string, nutritionPlanId: row.nutrition_plan_id as string, name: row.name as string, mealOrder: row.meal_order as number, mealTime: (row.meal_time as string | null) ?? null, description: (row.description as string | null) ?? null, guidance: (row.guidance as string | null) ?? null, recipeId: (row.recipe_id as string | null) ?? null, recipeName: (recipe?.name as string | null) ?? null, items: items.sort((left, right) => Number(left.item_order) - Number(right.item_order)).map((item) => ({ id: String(item.id), foodName: String(item.food_name), quantity: item.quantity == null ? null : Number(item.quantity), unit: (item.unit as string | null) ?? null, notes: (item.notes as string | null) ?? null, itemOrder: Number(item.item_order) })) }; });
     },
     async listRecipes() {
-      const { data, error } = await client.from("recipes").select("id,name,description,ingredients,instructions,image_asset_id,image_asset:media_assets(bucket,path),recipe_ingredients(name,quantity,unit,notes,ingredient_order)").or(await contentScope()).eq("is_active", true).order("name");
+      // The recipe catalogue renders only name and description. Avoid embedded
+      // relations here: each relation has owner-bound RLS and a wide embedded
+      // query can exceed Postgres' statement timeout before the user opens one.
+      const { data, error } = await client.from("recipes").select("id,name,description,ingredients,instructions,image_asset_id").eq("is_active", true).order("name");
       if (error) throw error;
-      return Promise.all(((data ?? []) as ContentRow[]).map(async (row) => ({ id: row.id as string, name: row.name as string, description: (row.description as string | null) ?? null, imageAssetId: (row.image_asset_id as string | null) ?? null, imageUrl: await signedAssetUrl(row.image_asset as ContentRow | null), ingredients: Array.isArray(row.recipe_ingredients) && row.recipe_ingredients.length ? (row.recipe_ingredients as { name: string; quantity?: string; unit?: string | null; notes?: string | null; ingredient_order: number }[]).sort((a,b) => a.ingredient_order - b.ingredient_order).map(({ name, quantity, unit, notes }) => ({ name, quantity, ...(unit ? { unit } : {}), ...(notes ? { notes } : {}) })) : Array.isArray(row.ingredients) ? row.ingredients as Recipe["ingredients"] : [], instructions: (row.instructions as string | null) ?? null })));
+      return Promise.all(((data ?? []) as ContentRow[]).map(toRecipe));
+    },
+    async getRecipe(id) {
+      // RLS is the source of truth for GLOBAL/CLIENT availability. Query the
+      // requested row first, then fetch only its ingredients and optional cover
+      // instead of embedding policy-protected relations in one expensive query.
+      const { data, error } = await client.from("recipes").select("id,name,description,ingredients,instructions,image_asset_id").eq("id", id).eq("is_active", true).maybeSingle();
+      if (error) throw error;
+      if (!data) return null;
+      const row = data as ContentRow;
+      const { data: ingredients, error: ingredientsError } = await client.from("recipe_ingredients").select("name,quantity,unit,notes,ingredient_order").eq("recipe_id", id).order("ingredient_order");
+      if (ingredientsError) throw ingredientsError;
+      let asset: ContentRow | null = null;
+      if (row.image_asset_id) {
+        const { data: imageAsset, error: assetError } = await client.from("media_assets").select("bucket,path").eq("id", row.image_asset_id as string).maybeSingle();
+        if (assetError) console.error("Unable to read optional editorial cover", { recipeId: id, error: assetError });
+        else asset = imageAsset as ContentRow | null;
+      }
+      return toRecipe({ ...row, image_asset: asset, recipe_ingredients: ingredients ?? [] });
     },
     async listProgressWeights() {
       const { data, error } = await client.from("progress_weights").select("id,assessment_id,value,recorded_at").eq("client_id", await ownClientId()).order("recorded_at", { ascending: false }); if (error) throw error;
