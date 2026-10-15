@@ -11,6 +11,9 @@ const clientName = (value: Row | null) => {
   const profile = row(value?.profile);
   return typeof profile?.full_name === "string" && profile.full_name ? String(profile.full_name) : "Cliente sem nome";
 };
+const ownerName = (value: Row) => typeof value.client_name === "string" && value.client_name
+  ? value.client_name
+  : row(value.client) ? clientName(row(value.client)) : null;
 
 export function createAdminMediaRepository(client: SupabaseClient) {
   const addReference = (references: ReferenceMap, id: unknown, label: string, href: string) => {
@@ -77,12 +80,11 @@ export function createAdminMediaRepository(client: SupabaseClient) {
   const mapImages = async (rows: Row[], references: ReferenceMap): Promise<AdminMediaItem[]> => {
     const urls = await imageUrls(rows);
     return rows.map((value) => {
-      const owner = row(value.client);
       const urlKey = typeof value.bucket === "string" && typeof value.path === "string" ? JSON.stringify([value.bucket, value.path]) : "";
       return {
         id: String(value.id), kind: "image", title: String(value.title ?? value.alt_text ?? "Imagem sem título"),
         scope: value.scope === "CLIENT" ? "CLIENT" : "GLOBAL", clientId: value.client_id as string ?? null,
-        clientName: owner ? clientName(owner) : null, assetType: value.asset_type as AdminMediaItem["assetType"],
+        clientName: ownerName(value), assetType: (value.asset_type ?? value.media_type) as AdminMediaItem["assetType"],
         metadata: (value.metadata as Record<string, unknown>) ?? {}, imageUrl: urls.get(urlKey) ?? null,
         createdAt: String(value.created_at), updatedAt: String(value.updated_at ?? value.created_at), references: references.get(String(value.id)) ?? [],
       };
@@ -90,11 +92,10 @@ export function createAdminMediaRepository(client: SupabaseClient) {
   };
 
   const mapVideos = (rows: Row[], references: ReferenceMap): AdminMediaItem[] => rows.map((value) => {
-    const owner = row(value.client);
     return {
       id: String(value.id), kind: "video", title: String(value.title), scope: value.scope === "CLIENT" ? "CLIENT" : "GLOBAL",
-      clientId: value.client_id as string ?? null, clientName: owner ? clientName(owner) : null, provider: "youtube",
-      providerVideoId: String(value.provider_video_id), description: value.description as string ?? null, type: value.type as string ?? null,
+      clientId: value.client_id as string ?? null, clientName: ownerName(value), provider: "youtube",
+      providerVideoId: String(value.provider_video_id), description: value.description as string ?? null, type: (value.type ?? value.media_type) as string ?? null,
       isActive: value.is_active !== false, createdAt: String(value.created_at), updatedAt: String(value.updated_at), references: references.get(String(value.id)) ?? [],
     };
   });
@@ -113,39 +114,31 @@ export function createAdminMediaRepository(client: SupabaseClient) {
     clients,
     async references(kind: MediaKind, id: string) { return referenceMap(kind, [id]).then((all) => all.get(id) ?? []); },
     async list(filters: ReturnType<typeof mediaFilters>) {
-      const fetch = async (kind: MediaKind) => {
-        const table = kind === "image" ? "media_assets" : "videos";
-        let query = client.from(table).select("*,client:clients(id,profile:profiles(full_name,email))").order("created_at", { ascending: false }).order("id", { ascending: false });
-        if (filters.q) query = query.ilike("title", `%${filters.q}%`);
-        if (filters.scope !== "all") query = query.eq("scope", filters.scope);
-        if (filters.clientId) query = query.eq("client_id", filters.clientId);
-        if (kind === "video" && filters.status !== "all") query = query.eq("is_active", filters.status === "active");
-        if (filters.type !== "all") query = query.eq(kind === "image" ? "asset_type" : "type", filters.type);
-        const { data, error } = await query;
-        if (error) throw error;
-        const rows = (data ?? []) as Row[];
-        const references = await referenceMap(kind, rows.map((value) => String(value.id)));
-        const filtered = filters.reference === "all" ? rows : rows.filter((value) => {
-          const used = (references.get(String(value.id)) ?? []).length > 0;
-          return filters.reference === "used" ? used : !used;
-        });
-        return { rows: filtered, references };
-      };
-
-      const selectedKind: MediaKind = filters.kind === "image" ? "image" : "video";
-      const fetched = filters.kind === "all" ? await Promise.all([fetch("image"), fetch("video")]) : [await fetch(selectedKind)];
-      const available = fetched.flatMap(({ rows, references }, index) => rows.map((value) => ({ value, references, kind: filters.kind === "all" ? (index === 0 ? "image" : "video") : selectedKind })))
-        .sort((left, right) => String(right.value.created_at).localeCompare(String(left.value.created_at)) || String(right.value.id).localeCompare(String(left.value.id)));
       const start = (filters.page - 1) * 20;
-      const page = available.slice(start, start + 20);
+      let query = client.from("admin_media_library").select("*", { count: "exact" }).order("created_at", { ascending: false }).order("id", { ascending: false }).range(start, start + 19);
+      if (filters.q) query = query.ilike("title", `%${filters.q}%`);
+      if (filters.kind !== "all") query = query.eq("kind", filters.kind);
+      if (filters.scope !== "all") query = query.eq("scope", filters.scope);
+      if (filters.clientId) query = query.eq("client_id", filters.clientId);
+      if (filters.status !== "all") query = query.or(`kind.eq.image,is_active.eq.${filters.status === "active"}`);
+      if (filters.type !== "all") query = query.eq("media_type", filters.type);
+      if (filters.reference === "used") query = query.gt("reference_count", 0);
+      if (filters.reference === "orphan") query = query.eq("reference_count", 0);
+      const { data, error, count } = await query;
+      if (error) throw error;
+      const page = (data ?? []) as Row[];
       const images = page.filter((item) => item.kind === "image");
       const videos = page.filter((item) => item.kind === "video");
+      const [imageReferences, videoReferences] = await Promise.all([
+        referenceMap("image", images.map((item) => String(item.id))),
+        referenceMap("video", videos.map((item) => String(item.id))),
+      ]);
       const [imageItems, videoItems] = await Promise.all([
-        mapImages(images.map((item) => item.value), new Map(images.map((item) => [String(item.value.id), item.references.get(String(item.value.id)) ?? []]))),
-        mapVideos(videos.map((item) => item.value), new Map(videos.map((item) => [String(item.value.id), item.references.get(String(item.value.id)) ?? []]))),
+        mapImages(images, imageReferences),
+        mapVideos(videos, videoReferences),
       ]);
       const items = [...imageItems, ...videoItems].sort((left, right) => right.createdAt.localeCompare(left.createdAt) || right.id.localeCompare(left.id));
-      return { items, total: available.length, page: filters.page, pageSize: 20 };
+      return { items, total: count ?? 0, page: filters.page, pageSize: 20 };
     },
     async get(id: string) {
       const [imageResult, videoResult] = await Promise.all([
