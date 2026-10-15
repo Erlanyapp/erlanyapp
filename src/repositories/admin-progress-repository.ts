@@ -25,10 +25,32 @@ export function createAdminProgressRepository(client: SupabaseClient) {
     if (error) throw error;
     if (!data) throw new Error("A avaliação não pertence a este cliente.");
   };
-  const signed = async (asset: Row | null) => {
-    if (!asset || asset.bucket !== "images" || typeof asset.path !== "string") return { imageUrl: null, imageError: !!asset };
-    const { data, error } = await client.storage.from("images").createSignedUrl(asset.path, 900);
-    return { imageUrl: data?.signedUrl ?? null, imageError: !!error || !data?.signedUrl };
+  const signedByBucket = async (assets: Array<Row | null>) => {
+    const grouped = new Map<string, Set<string>>();
+    for (const asset of assets) {
+      if (typeof asset?.bucket !== "string" || typeof asset.path !== "string") continue;
+      const paths = grouped.get(asset.bucket) ?? new Set<string>();
+      paths.add(asset.path);
+      grouped.set(asset.bucket, paths);
+    }
+    const urls = new Map<string, string | null>();
+    await Promise.all([...grouped].map(async ([bucket, paths]) => {
+      const requested = [...paths];
+      const { data, error } = await client.storage.from(bucket).createSignedUrls(requested, 900);
+      if (error) {
+        for (const path of requested) urls.set(JSON.stringify([bucket, path]), null);
+        return;
+      }
+      for (const path of requested) urls.set(JSON.stringify([bucket, path]), null);
+      for (const signed of data ?? []) {
+        if (typeof signed.path === "string") urls.set(JSON.stringify([bucket, signed.path]), signed.signedUrl ?? null);
+      }
+    }));
+    return assets.map((asset) => {
+      if (typeof asset?.bucket !== "string" || typeof asset.path !== "string") return { imageUrl: null, imageError: !!asset };
+      const imageUrl = urls.get(JSON.stringify([asset.bucket, asset.path])) ?? null;
+      return { imageUrl, imageError: !imageUrl };
+    });
   };
   return {
     clientExists,
@@ -43,12 +65,14 @@ export function createAdminProgressRepository(client: SupabaseClient) {
         client.from("progress_photos").select("id,client_id,assessment_id,asset_id,category,recorded_at,asset:media_assets(bucket,path)").eq("client_id", clientId).order("recorded_at", { ascending: false }).limit(100),
       ]);
       for (const result of [assessments, weights, measurements, performance, photos]) if (result.error) throw result.error;
+      const photoRows = rows(photos.data);
+      const signedPhotos = await signedByBucket(photoRows.map((item) => row(item.asset)));
       return {
         assessments: rows(assessments.data).map(item => ({ id: String(item.id), clientId: String(item.client_id), assessedAt: String(item.assessed_at), notes: typeof item.notes === "string" ? item.notes : null, assessedBy: typeof item.assessed_by === "string" ? item.assessed_by : null, createdAt: String(item.created_at), updatedAt: String(item.updated_at) })) as AdminProgressAssessment[],
         weights: rows(weights.data).map(item => ({ id: String(item.id), assessmentId: typeof item.assessment_id === "string" ? item.assessment_id : null, value: Number(item.value), recordedAt: String(item.recorded_at) })),
         measurements: rows(measurements.data).map(item => ({ id: String(item.id), clientId: String(item.client_id), assessmentId: typeof item.assessment_id === "string" ? item.assessment_id : null, measurements: Object.fromEntries(Object.entries(row(item.measurements) ?? {}).filter(([, value]) => typeof value === "string" || typeof value === "number").map(([key, value]) => [key, String(value)])), recordedAt: String(item.recorded_at) })) as AdminProgressMeasurement[],
         performance: rows(performance.data).map(item => ({ id: String(item.id), clientId: String(item.client_id), assessmentId: typeof item.assessment_id === "string" ? item.assessment_id : null, metric: String(item.metric), value: item.value == null ? null : Number(item.value), unit: typeof item.unit === "string" ? item.unit : null, recordedAt: String(item.recorded_at) })) as AdminPerformanceRecord[],
-        photos: await Promise.all(rows(photos.data).map(async item => ({ id: String(item.id), clientId: String(item.client_id), assessmentId: typeof item.assessment_id === "string" ? item.assessment_id : null, assetId: typeof item.asset_id === "string" ? item.asset_id : null, category: typeof item.category === "string" ? item.category : null, recordedAt: String(item.recorded_at), ...await signed(row(item.asset)) }))) as AdminProgressPhoto[],
+        photos: photoRows.map((item, index) => ({ id: String(item.id), clientId: String(item.client_id), assessmentId: typeof item.assessment_id === "string" ? item.assessment_id : null, assetId: typeof item.asset_id === "string" ? item.asset_id : null, category: typeof item.category === "string" ? item.category : null, recordedAt: String(item.recorded_at), ...signedPhotos[index] })) as AdminProgressPhoto[],
       };
     },
     async saveAssessment(clientId: string, id: string | null, input: { assessedAt: string; notes: string | null }, assessedBy: string) {

@@ -127,6 +127,28 @@ export function createContentRepository(client: SupabaseClient, resolveOwner?: (
     })());
     return signedAssets.get(key)!;
   };
+  const signedAssetUrlsByBucket = async (assets: Array<ContentRow | null | undefined>): Promise<Array<string | null>> => {
+    const grouped = new Map<string, Set<string>>();
+    for (const asset of assets) {
+      if (typeof asset?.bucket !== "string" || typeof asset.path !== "string") continue;
+      const paths = grouped.get(asset.bucket) ?? new Set<string>();
+      paths.add(asset.path);
+      grouped.set(asset.bucket, paths);
+    }
+    const urls = new Map<string, string | null>();
+    await Promise.all([...grouped].map(async ([bucket, paths]) => {
+      const requested = [...paths];
+      const { data, error } = await client.storage.from(bucket).createSignedUrls(requested, 3600);
+      if (error) throw error;
+      for (const path of requested) urls.set(JSON.stringify([bucket, path]), null);
+      for (const signed of data ?? []) {
+        if (typeof signed.path === "string") urls.set(JSON.stringify([bucket, signed.path]), signed.signedUrl ?? null);
+      }
+    }));
+    return assets.map((asset) => typeof asset?.bucket === "string" && typeof asset.path === "string"
+      ? urls.get(JSON.stringify([asset.bucket, asset.path])) ?? null
+      : null);
+  };
   // Editorial covers enrich the content but must never prevent an otherwise
   // authorized recipe from loading. Keep the signing failure observable on the
   // server while allowing the client to render the recipe without its cover.
@@ -371,7 +393,9 @@ export function createContentRepository(client: SupabaseClient, resolveOwner?: (
     async listProgressPhotos() {
       const { data, error } = await client.from("progress_photos").select("id,asset_id,assessment_id,category,recorded_at, asset:media_assets(bucket,path)").eq("client_id", await ownClientId()).order("recorded_at", { ascending: false });
       if (error) throw error;
-      return Promise.all(((data ?? []) as ContentRow[]).map(async (row) => ({ id: row.id as string, assetId: (row.asset_id as string | null) ?? null, assessmentId: (row.assessment_id as string | null) ?? null, category: (row.category as string | null) ?? null, recordedAt: row.recorded_at as string, imageUrl: await signedAssetUrl(row.asset as ContentRow | null) })));
+      const photos = (data ?? []) as ContentRow[];
+      const imageUrls = await signedAssetUrlsByBucket(photos.map((photo) => photo.asset as ContentRow | null));
+      return photos.map((row, index) => ({ id: row.id as string, assetId: (row.asset_id as string | null) ?? null, assessmentId: (row.assessment_id as string | null) ?? null, category: (row.category as string | null) ?? null, recordedAt: row.recorded_at as string, imageUrl: imageUrls[index] }));
     },
     async listTips() {
       const { data, error } = await client.from("tips").select("*, category:tip_categories(name), image_asset:media_assets(bucket,path)").or(await contentScope()).eq("is_active", true).order("title");

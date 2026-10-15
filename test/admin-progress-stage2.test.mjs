@@ -71,6 +71,9 @@ test("progress repository keeps every mutation client-bound and validates the li
   assert.match(repository, /scope: "CLIENT", client_id: clientId, asset_type: "progress"/);
   assert.match(repository, /async replacePhoto/);
   assert.match(repository, /\.update\(\{ asset_id: assetId, assessment_id: input\.assessmentId/);
+  assert.match(repository, /const signedByBucket/);
+  assert.match(repository, /createSignedUrls\(requested, 900\)/);
+  assert.doesNotMatch(repository, /const signed = async/);
 });
 
 test("all administrative progress writes use requireAdmin Server Actions and refresh only affected views", async () => {

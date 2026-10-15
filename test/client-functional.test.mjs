@@ -105,12 +105,12 @@ test("exercise media follows the private thumbnail asset relation and renders no
   assert.doesNotMatch(player, /video!\.title/);
 });
 function infrastructure(rows, storageError = null) {
-  const calls=[];let authCalls=0;let signCalls=0;
+  const calls=[];let authCalls=0;let signCalls=0;const signedBatches=[];
   const client={auth:{getUser:async()=>{authCalls++;return {data:{user:{id:"user-a"}},error:null};}},from(table){
     const query={select(...args){calls.push([table,"select",...args]);return this;},eq(...args){calls.push([table,"eq",...args]);return this;},lte(...args){calls.push([table,"lte",...args]);return this;},or(...args){calls.push([table,"or",...args]);return this;},order(){return this;},single(){return Promise.resolve({data:rows[table]?.[0]??{id:"client-a"},error:null});},then(resolve){return Promise.resolve({data:rows[table]??[],error:null}).then(resolve);}};
     return query;
-  },storage:{from(){return {createSignedUrl:async()=>{signCalls++;return {data:storageError?null:{signedUrl:"signed-private-image"},error:storageError};}};}}};
-  return {client,calls,authCalls:()=>authCalls,signCalls:()=>signCalls};
+  },storage:{from(bucket){return {createSignedUrl:async()=>{signCalls++;return {data:storageError?null:{signedUrl:"signed-private-image"},error:storageError};},createSignedUrls:async paths=>{signCalls++;signedBatches.push([bucket,paths]);return {data:storageError?null:paths.map(path=>({path,signedUrl:`signed:${bucket}:${path}`})),error:storageError};}};}}};
+  return {client,calls,authCalls:()=>authCalls,signCalls:()=>signCalls,signedBatches};
 }
 test("all progress reads explicitly use authenticated ownership, including ADMIN client views",async()=>{
   const infra=infrastructure({clients:[{id:"client-a"}]});const repository=createContentRepository(infra.client);
@@ -233,6 +233,29 @@ test("weekly schedule visibility remains owner-bound, in-period and requires a W
 test("private image signing failure is an error, not a misleading empty success",async()=>{
   const infra=infrastructure({clients:[{id:"client-a"}],progress_photos:[{id:"photo-a",asset:{bucket:"images",path:"progress/client-a/a.jpg"}}]},new Error("Storage denied"));
   await assert.rejects(createContentRepository(infra.client).listProgressPhotos(),/Storage denied/);
+});
+test("progress photos batch private signatures per bucket, preserve order and degrade only missing files", async () => {
+  const infra = infrastructure({ clients: [{ id: "client-a" }], progress_photos: [
+    { id: "newest", asset_id: "asset-1", category: "Frente", recorded_at: "2026-10-10", asset: { bucket: "images", path: "progress/client-a/newest.webp" } },
+    { id: "missing", asset_id: "asset-2", category: "Lateral", recorded_at: "2026-10-09", asset: { bucket: "images", path: "progress/client-a/missing.webp" } },
+    { id: "other-bucket", asset_id: "asset-3", category: "Costas", recorded_at: "2026-10-08", asset: { bucket: "private-progress", path: "client-a/back.webp" } },
+  ] });
+  const signedBatches = [];
+  infra.client.storage.from = bucket => ({
+    createSignedUrl: async () => ({ data: { signedUrl: "unused" }, error: null }),
+    createSignedUrls: async paths => {
+      signedBatches.push([bucket, paths]);
+      return { data: paths.map(path => ({ path, signedUrl: path.includes("missing") ? null : `signed:${bucket}:${path}` })), error: null };
+    },
+  });
+  const photos = await createContentRepository(infra.client).listProgressPhotos();
+  assert.deepEqual(photos.map(photo => photo.id), ["newest", "missing", "other-bucket"]);
+  assert.equal(photos[0].imageUrl, "signed:images:progress/client-a/newest.webp");
+  assert.equal(photos[1].imageUrl, null);
+  assert.equal(photos[2].imageUrl, "signed:private-progress:client-a/back.webp");
+  assert.equal(infra.authCalls(), 1);
+  assert.ok(infra.calls.some(call => JSON.stringify(call) === JSON.stringify(["progress_photos", "eq", "client_id", "client-a"])));
+  assert.deepEqual(signedBatches, [["images", ["progress/client-a/newest.webp", "progress/client-a/missing.webp"]], ["private-progress", ["client-a/back.webp"]]]);
 });
 test("profile signs own path only and uses app_metadata, not editable metadata, for roles",async()=>{
   const infra=infrastructure({profiles:[{full_name:"Maria",avatar_url:"avatars/user-b/a.jpg"}],clients:[{id:"client-a"}]});
