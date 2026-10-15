@@ -1,0 +1,2 @@
+import {PageHeader}from"@/components/ui";import{InitialIntakeForm}from"@/components/client/initial-intake-form";import{getClientIntake}from"@/services/server-client-intake";
+export default async function InitialIntakePage(){const intake=await getClientIntake();return <div><PageHeader title="Sua ficha inicial" back backHref="/app/perfil"/><InitialIntakeForm initial={await intake.get() as Record<string,unknown>|null}/></div>}

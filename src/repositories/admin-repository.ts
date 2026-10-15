@@ -70,7 +70,7 @@ export function createAdminRepository(client:SupabaseClient) {
     async getClient(id:string):Promise<AdminClientDetail|null> {
       const {data,error}=await client.from("clients").select(selectClient).eq("id",id).maybeSingle();
       if(error)throw error;if(!data)return null;
-      const [subscriptions,weight,measurements,photos,performance,workout,nutrition,workoutCount,progressCount]=await Promise.all([
+      const [subscriptions,weight,measurements,photos,performance,workout,nutrition,intake,workoutCount,progressCount]=await Promise.all([
         client.from("subscriptions").select("id,status,started_at,expires_at").eq("client_id",id).order("created_at",{ascending:false}).order("id",{ascending:false}).limit(10),
         client.from("progress_weights").select("value,recorded_at").eq("client_id",id).order("recorded_at",{ascending:false}).order("created_at",{ascending:false}).limit(1),
         client.from("progress_measurements").select("recorded_at").eq("client_id",id).order("recorded_at",{ascending:false}).limit(1),
@@ -78,13 +78,14 @@ export function createAdminRepository(client:SupabaseClient) {
         client.from("performance_records").select("recorded_at").eq("client_id",id).order("recorded_at",{ascending:false}).limit(1),
         client.from("workouts").select("name").eq("client_id",id).eq("scope","CLIENT").eq("status","published").eq("is_active",true).order("updated_at",{ascending:false}).limit(1),
         client.from("nutrition_plans").select("name").eq("client_id",id).eq("scope","CLIENT").order("updated_at",{ascending:false}).limit(1),
+        client.from("client_initial_intakes").select("status,birth_date,primary_goal,training_days_per_week,target_weight_kg,restrictions,free_workout_status,personalization_status").eq("client_id",id).maybeSingle(),
         count("workouts",{column:"client_id",value:id}),count("progress_weights",{column:"client_id",value:id})]);
-      for(const r of [subscriptions,weight,measurements,photos,performance,workout,nutrition])if(r.error)throw r.error;
+      for(const r of [subscriptions,weight,measurements,photos,performance,workout,nutrition,intake])if(r.error)throw r.error;
       const [base]=await signAvatars([toClient(data as Row)]),latest=weight.data?.[0];
       const dates=[latest?.recorded_at,measurements.data?.[0]?.recorded_at,photos.data?.[0]?.recorded_at,performance.data?.[0]?.recorded_at].filter((x):x is string=>typeof x==="string").sort();
       return {...base,subscriptions:(subscriptions.data??[]).map(x=>({id:x.id,status:x.status,startedAt:x.started_at,expiresAt:x.expires_at})),workoutCount,progressCount,
         latestWeight:latest?{value:Number(latest.value),recordedAt:latest.recorded_at}:null,lastEvolutionAt:dates.at(-1)??null,
-        currentWorkout:workout.data?.[0]?.name??null,currentNutritionPlan:nutrition.data?.[0]?.name??null};
+        currentWorkout:workout.data?.[0]?.name??null,currentNutritionPlan:nutrition.data?.[0]?.name??null,initialIntake:intake.data?{status:String(intake.data.status),birthDate:intake.data.birth_date,primaryGoal:intake.data.primary_goal,trainingDaysPerWeek:intake.data.training_days_per_week,targetWeightKg:intake.data.target_weight_kg===null?null:Number(intake.data.target_weight_kg),restrictions:intake.data.restrictions,freeWorkoutStatus:String(intake.data.free_workout_status),personalizationStatus:String(intake.data.personalization_status)}:null};
     },
     async getClientTarget(id:string) {
       const {data,error}=await client.from("clients").select("id,user_id,status,profile:profiles!clients_profile_fkey!inner(updated_at)").eq("id",id).maybeSingle();

@@ -25,6 +25,7 @@ export interface AdminClient {
 }
 
 export interface AdminClientDetail extends AdminClient {
+  initialIntake: {status:string; birthDate:string|null; primaryGoal:string|null; trainingDaysPerWeek:number|null; targetWeightKg:number|null; restrictions:string|null; freeWorkoutStatus:string; personalizationStatus:string} | null;
   subscriptions: Array<{ id: string; status: string; startedAt: string | null; expiresAt: string | null }>;
   workoutCount: number;
   progressCount: number;

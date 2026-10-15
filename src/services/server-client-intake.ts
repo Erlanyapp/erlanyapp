@@ -1,0 +1,2 @@
+import "server-only";import { cache } from "react";import { getClientIdentity,getOwnClientId } from "@/services/server-client-context";import { createClientIntakeRepository } from "@/repositories/client-intake-repository";
+export const getClientIntake=cache(async()=>{const i=await getClientIdentity();if(!i)throw new Error("Supabase não está configurado.");return createClientIntakeRepository(i.client,getOwnClientId)});
