@@ -238,8 +238,12 @@ test("an optional recipe cover signing failure preserves authorized recipe conte
 });
 test("nutrition plans do not request the optional recipe library",async()=>{
   const page=await source("src/app/(client)/app/alimentacao/page.tsx");
+  const repository=await source("src/repositories/content-repository.ts");
   assert.match(page,/selected === "Receitas" \? \[\] : await service\.listNutritionPlans\(\)/);
   assert.match(page,/selected === "Planos" \|\| selected === "Orientações" \? \[\] : await service\.listRecipes\(\)/);
+  assert.match(page,/await service\.listNutritionMealsForPlans\(plans\.map\(\(plan\) => plan\.id\)\)/);
+  assert.doesNotMatch(page,/Promise\.all\(plans\.map\(async plan => \(\{ plan, meals: await service\.listNutritionMeals/);
+  assert.match(repository,/async listNutritionMealsForPlans\(planIds\)[\s\S]*?\.in\("nutrition_plan_id", planIds\)/);
   assert.match(page,/meal\.recipeId && <Link/);
 });
 test("recipe detail resolves one owner-authorized recipe instead of timing out on the full library",async()=>{

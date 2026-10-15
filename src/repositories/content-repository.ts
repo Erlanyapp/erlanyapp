@@ -14,6 +14,7 @@ export interface ContentRepository {
   listTips(): Promise<Tip[]>;
   listNutritionPlans(): Promise<NutritionPlan[]>;
   listNutritionMeals(planId: string): Promise<NutritionMeal[]>;
+  listNutritionMealsForPlans(planIds: string[]): Promise<NutritionMeal[]>;
   listRecipes(): Promise<Recipe[]>;
   getRecipe(id: string): Promise<Recipe | null>;
   listProgressWeights(): Promise<ProgressWeight[]>;
@@ -148,6 +149,20 @@ export function createContentRepository(client: SupabaseClient, resolveOwner?: (
       : Array.isArray(row.ingredients) ? row.ingredients as Recipe["ingredients"] : [],
     instructions: (row.instructions as string | null) ?? null,
   });
+  const toNutritionMeal = (row: ContentRow): NutritionMeal => {
+    const recipe = row.recipe as ContentRow | null;
+    const items = Array.isArray(row.items) ? row.items as ContentRow[] : [];
+    return {
+      ...scoped(row), id: row.id as string, nutritionPlanId: row.nutrition_plan_id as string, name: row.name as string,
+      mealOrder: row.meal_order as number, mealTime: (row.meal_time as string | null) ?? null,
+      description: (row.description as string | null) ?? null, guidance: (row.guidance as string | null) ?? null,
+      recipeId: (row.recipe_id as string | null) ?? null, recipeName: (recipe?.name as string | null) ?? null,
+      items: items.sort((left, right) => Number(left.item_order) - Number(right.item_order)).map((item) => ({
+        id: String(item.id), foodName: String(item.food_name), quantity: item.quantity == null ? null : Number(item.quantity),
+        unit: (item.unit as string | null) ?? null, notes: (item.notes as string | null) ?? null, itemOrder: Number(item.item_order),
+      })),
+    };
+  };
   const getWorkout = (id: string) => {
     if (!workouts.has(id)) workouts.set(id, (async () => {
       const { data, error } = await client.from("workouts").select("*").eq("id", id).eq("is_active", true).maybeSingle();
@@ -252,7 +267,13 @@ export function createContentRepository(client: SupabaseClient, resolveOwner?: (
     async listNutritionMeals(planId) {
       const { data, error } = await client.from("nutrition_meals").select("*,recipe:recipes(id,name),items:nutrition_meal_items(id,food_name,quantity,unit,notes,item_order)").eq("nutrition_plan_id", planId).order("meal_time").order("meal_order");
       if (error) throw error;
-      return ((data ?? []) as ContentRow[]).map((row) => { const recipe = row.recipe as ContentRow | null; const items = Array.isArray(row.items) ? row.items as ContentRow[] : []; return { ...scoped(row), id: row.id as string, nutritionPlanId: row.nutrition_plan_id as string, name: row.name as string, mealOrder: row.meal_order as number, mealTime: (row.meal_time as string | null) ?? null, description: (row.description as string | null) ?? null, guidance: (row.guidance as string | null) ?? null, recipeId: (row.recipe_id as string | null) ?? null, recipeName: (recipe?.name as string | null) ?? null, items: items.sort((left, right) => Number(left.item_order) - Number(right.item_order)).map((item) => ({ id: String(item.id), foodName: String(item.food_name), quantity: item.quantity == null ? null : Number(item.quantity), unit: (item.unit as string | null) ?? null, notes: (item.notes as string | null) ?? null, itemOrder: Number(item.item_order) })) }; });
+      return ((data ?? []) as ContentRow[]).map(toNutritionMeal);
+    },
+    async listNutritionMealsForPlans(planIds) {
+      if (!planIds.length) return [];
+      const { data, error } = await client.from("nutrition_meals").select("*,recipe:recipes(id,name),items:nutrition_meal_items(id,food_name,quantity,unit,notes,item_order)").in("nutrition_plan_id", planIds).order("nutrition_plan_id").order("meal_time").order("meal_order");
+      if (error) throw error;
+      return ((data ?? []) as ContentRow[]).map(toNutritionMeal);
     },
     async listRecipes() {
       // The recipe catalogue renders only name and description. Avoid embedded
