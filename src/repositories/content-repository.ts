@@ -7,6 +7,7 @@ export interface ContentRepository {
   listAssignedWorkouts(): Promise<AssignedWorkout[]>;
   listAssignedWorkoutSchedule(): Promise<AssignedWorkout[]>;
   getWorkout(id: string): Promise<Workout | null>;
+  getWorkoutWithExercises(id: string): Promise<{ workout: Workout; items: WorkoutExercise[] } | null>;
   listWorkoutExercises(workoutId: string): Promise<WorkoutExercise[]>;
   listVideos(): Promise<WorkoutVideo[]>;
   getVideo(id: string): Promise<WorkoutVideo | null>;
@@ -21,6 +22,7 @@ export interface ContentRepository {
   listProgressAssessments(): Promise<ProgressAssessment[]>;
   listProgressMeasurements(): Promise<ProgressMeasurement[]>;
   listPerformanceRecords(): Promise<PerformanceRecord[]>;
+  listTodayWorkoutCheckins(): Promise<WorkoutCheckin[]>;
   getTodayWorkoutCheckin(assignmentId: string): Promise<WorkoutCheckin | null>;
   getWorkoutCheckinSummary(): Promise<WorkoutCheckinSummary>;
   listProgressPhotos(): Promise<ProgressPhoto[]>;
@@ -171,6 +173,18 @@ export function createContentRepository(client: SupabaseClient, resolveOwner?: (
     })());
     return workouts.get(id)!;
   };
+  const toWorkoutExercise = async (row: ContentRow): Promise<WorkoutExercise> => {
+    const exercise = row.exercise as ContentRow | null;
+    return {
+      id: row.id as string, workoutId: row.workout_id as string, exerciseId: row.exercise_id as string,
+      videoId: (row.video_id as string | null) ?? null, position: row.position as number,
+      sets: (row.sets as number | null) ?? null, repetitions: (row.repetitions as string | null) ?? null,
+      load: (row.load as string | null) ?? null, restSeconds: (row.rest_seconds as number | null) ?? null,
+      durationSeconds: (row.duration_seconds as number | null) ?? null, notes: (row.notes as string | null) ?? null,
+      exerciseName: exercise?.name as string | undefined,
+      exerciseThumbnailUrl: await signedAssetUrl(exercise?.thumbnail_asset as ContentRow | null),
+    };
+  };
   return {
     async listExercises() {
       const { data, error } = await client.from("exercises").select("*, category:exercise_categories(name), thumbnail_asset:media_assets(bucket,path)").or(await contentScope()).eq("is_active", true).order("name");
@@ -222,22 +236,26 @@ export function createContentRepository(client: SupabaseClient, resolveOwner?: (
       return unique;
     },
     getWorkout,
+    async getWorkoutWithExercises(id) {
+      // The parent workout remains RLS-protected. Embedding its exercises here
+      // removes a dependent round-trip from the client exercise-detail route.
+      const { data, error } = await client
+        .from("workouts")
+        .select("*,workout_exercises(*,exercise:exercises(name,thumbnail_asset:media_assets(bucket,path)))")
+        .eq("id", id)
+        .eq("is_active", true)
+        .maybeSingle();
+      if (error) throw error;
+      if (!data) return null;
+      const workout = data as ContentRow;
+      const rows = Array.isArray(workout.workout_exercises) ? workout.workout_exercises as ContentRow[] : [];
+      return { workout: toWorkout(workout), items: await Promise.all(rows.map(toWorkoutExercise)) };
+    },
     async listWorkoutExercises(workoutId) {
       if (!await getWorkout(workoutId)) return [];
       const { data, error } = await client.from("workout_exercises").select("*, exercise:exercises(name,thumbnail_asset:media_assets(bucket,path))").eq("workout_id", workoutId).order("position");
       if (error) throw error;
-      return Promise.all(((data ?? []) as ContentRow[]).map(async (row) => {
-        const exercise = row.exercise as ContentRow | null;
-        return {
-        id: row.id as string, workoutId: row.workout_id as string, exerciseId: row.exercise_id as string,
-        videoId: (row.video_id as string | null) ?? null, position: row.position as number,
-        sets: (row.sets as number | null) ?? null, repetitions: (row.repetitions as string | null) ?? null,
-        load: (row.load as string | null) ?? null, restSeconds: (row.rest_seconds as number | null) ?? null,
-        durationSeconds: (row.duration_seconds as number | null) ?? null, notes: (row.notes as string | null) ?? null,
-        exerciseName: exercise?.name as string | undefined,
-        exerciseThumbnailUrl: await signedAssetUrl(exercise?.thumbnail_asset as ContentRow | null),
-      };
-      }));
+      return Promise.all(((data ?? []) as ContentRow[]).map(toWorkoutExercise));
     },
     async listVideos() {
       const { data, error } = await client.from("videos").select("*").or(await contentScope()).eq("is_active", true).order("title");
@@ -316,6 +334,15 @@ export function createContentRepository(client: SupabaseClient, resolveOwner?: (
     async listPerformanceRecords() {
       const { data, error } = await client.from("performance_records").select("id,assessment_id,metric,value,unit,recorded_at").eq("client_id", await ownClientId()).order("recorded_at", { ascending: false }); if (error) throw error;
       return ((data ?? []) as ContentRow[]).map((row) => ({ id: row.id as string, assessmentId: (row.assessment_id as string | null) ?? null, metric: row.metric as string, value: row.value == null ? null : Number(row.value), unit: (row.unit as string | null) ?? null, recordedAt: row.recorded_at as string }));
+    },
+    async listTodayWorkoutCheckins() {
+      const { data, error } = await client
+        .from("workout_checkins")
+        .select("id,assignment_id,workout_id,completed_date,completed_at,workout:workouts(name)")
+        .eq("client_id", await ownClientId())
+        .eq("completed_date", saoPauloDate());
+      if (error) throw error;
+      return ((data ?? []) as ContentRow[]).map(toWorkoutCheckin);
     },
     async getTodayWorkoutCheckin(assignmentId) {
       const { data, error } = await client

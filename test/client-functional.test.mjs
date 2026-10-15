@@ -185,6 +185,19 @@ test("home uses the scheduled assignment source while workout detail still resol
   assert.match(detail, /service\.getWorkout\(id\)/);
   assert.match(detail, /service\.listWorkoutExercises\(id\)/);
 });
+
+test("client navigation loads independent progress data in parallel and keeps exercise detail owner-authorized", async () => {
+  const repository = await source("src/repositories/content-repository.ts");
+  const service = await source("src/services/content-service.ts");
+  const evolution = await source("src/app/(client)/app/evolucao/page.tsx");
+  const exercise = await source("src/app/(client)/app/exercicios/[id]/page.tsx");
+  assert.match(evolution, /Promise\.all\(\[service\.listProgressWeights\(\), assessments\]\)/);
+  assert.match(evolution, /Promise\.all\(\[service\.listPerformanceRecords\(\), service\.getWorkoutCheckinSummary\(\), assessments\]\)/);
+  assert.match(repository, /async getWorkoutWithExercises\(id\)[\s\S]*?from\("workouts"\)[\s\S]*?workout_exercises\(\*,exercise:exercises\(name,thumbnail_asset:media_assets\(bucket,path\)\)\)[\s\S]*?eq\("id", id\)[\s\S]*?eq\("is_active", true\)/);
+  assert.match(service, /getWorkoutWithExercises: \(id: string\) => repository\.getWorkoutWithExercises\(id\)/);
+  assert.match(exercise, /service\.getWorkoutWithExercises\(workoutId\)/);
+  assert.doesNotMatch(exercise, /service\.listWorkoutExercises\(workout\.id\)/);
+});
 test("workout list renders assignment days in weekly order and highlights only the Sao Paulo current day", async () => {
   const page = await source("src/app/(client)/app/treinos/page.tsx");
   assert.match(page, /service\.listAssignedWorkoutSchedule\(\)/);

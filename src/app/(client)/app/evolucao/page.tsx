@@ -18,11 +18,11 @@ export default async function ProgressPage({ searchParams }: { searchParams: Pro
   const service = await getContentService();
   if (!service) return <><PageHeader title="Minha evolução" back /><ContentError label="sua evolução" /></>;
   try {
-    const assessments = await service.listProgressAssessments();
-    const panel = selected === "Peso" ? <WeightPanel weights={await service.listProgressWeights()} assessments={assessments} />
-      : selected === "Medidas" ? <MeasurementsPanel records={await service.listProgressMeasurements()} assessments={assessments} />
-      : selected === "Fotos" ? <PhotosPanel photos={await service.listProgressPhotos()} assessments={assessments} />
-      : <PerformancePanel records={await service.listPerformanceRecords()} checkins={await service.getWorkoutCheckinSummary()} assessments={assessments} />;
+    const assessments = service.listProgressAssessments();
+    const panel = selected === "Peso" ? await Promise.all([service.listProgressWeights(), assessments]).then(([weights, notes]) => <WeightPanel weights={weights} assessments={notes} />)
+      : selected === "Medidas" ? await Promise.all([service.listProgressMeasurements(), assessments]).then(([records, notes]) => <MeasurementsPanel records={records} assessments={notes} />)
+      : selected === "Fotos" ? await Promise.all([service.listProgressPhotos(), assessments]).then(([photos, notes]) => <PhotosPanel photos={photos} assessments={notes} />)
+      : await Promise.all([service.listPerformanceRecords(), service.getWorkoutCheckinSummary(), assessments]).then(([records, checkins, notes]) => <PerformancePanel records={records} checkins={checkins} assessments={notes} />);
     return <div><PageHeader title="Minha evolução" back /><TabNavigation tabs={tabs} selected={selected} basePath="/app/evolucao" />{panel}</div>;
   } catch { return <><PageHeader title="Minha evolução" back /><ContentError label="sua evolução" /></>; }
 }

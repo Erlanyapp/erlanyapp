@@ -9,11 +9,12 @@ import { AppIcon } from "@/components/icons";
 export default async function HomePage() {
   const [{ account }, service] = await Promise.all([getClientAccount(), getContentService()]);
   let loadError = !service;
-  const workouts = service ? await service.listAssignedWorkouts().catch(() => { loadError = true; return []; }) : [];
+  const [workouts, todayCheckins] = service ? await Promise.all([
+    service.listAssignedWorkouts().catch(() => { loadError = true; return []; }),
+    service.listTodayWorkoutCheckins().catch(() => []),
+  ]) : [[], []];
   const dailyWorkout = workouts[0];
-  const checkedIn = service && dailyWorkout
-    ? await service.getTodayWorkoutCheckin(dailyWorkout.assignmentId).then(Boolean).catch(() => false)
-    : false;
+  const checkedIn = !!dailyWorkout && todayCheckins.some((checkin) => checkin.assignmentId === dailyWorkout.assignmentId);
   return <div className="home-page">
     <section className="home-hero" aria-label="Seu cuidado de hoje"><AppHeader account={account} /><HomeDailyWorkout workout={dailyWorkout} loadError={loadError} checkedIn={checkedIn} /></section>
     <div className="home-body">

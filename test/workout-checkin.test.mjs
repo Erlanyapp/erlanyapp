@@ -60,6 +60,14 @@ test("check-in reads and progress metrics stay owner-scoped, count total/week, a
   assert.doesNotMatch(repository, /service_role/);
 });
 
+test("home starts its scheduled workout and owner-scoped daily check-ins together", async () => {
+  const repository = await source("src/repositories/content-repository.ts");
+  const home = await source("src/app/(client)/app/inicio/page.tsx");
+  assert.match(repository, /async listTodayWorkoutCheckins\(\)[\s\S]*?from\("workout_checkins"\)[\s\S]*?eq\("client_id", await ownClientId\(\)\)[\s\S]*?eq\("completed_date", saoPauloDate\(\)\)/);
+  assert.match(home, /await Promise\.all\(\[\s*service\.listAssignedWorkouts\(\)[\s\S]*?service\.listTodayWorkoutCheckins\(\)/);
+  assert.match(home, /todayCheckins\.some\(\(checkin\) => checkin\.assignmentId === dailyWorkout\.assignmentId\)/);
+});
+
 test("check-in RLS binds every insert to auth.uid, active in-period assignment, current Sao Paulo schedule and a unique client-day", async () => {
   const migration = await source("supabase/migrations/20260918193849_workout_checkins.sql");
   const correction = await source("supabase/migrations/20260918195751_qualify_workout_checkin_policy.sql");
